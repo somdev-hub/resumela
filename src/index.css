@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme{
+  --color-primary: #137fec;
+}
+
+/* Hide scrollbars but allow scrolling */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+/* Ensure main app can occupy full viewport height for proper column scroll areas */
+html, body, #root {
+  height: 100%;
+}
