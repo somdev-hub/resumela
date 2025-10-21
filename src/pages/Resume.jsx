@@ -53,6 +53,11 @@ import {
   FaPencilAlt,
   FaList,
   FaGlobe,
+  FaEnvelope,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaLinkedin,
+  FaGithub,
   FaBold,
   FaItalic,
   FaUnderline,
@@ -62,6 +67,7 @@ import {
   FaAlignCenter,
   FaAlignRight,
 } from "react-icons/fa";
+import RichTextEditor from '../components/RichTextEditor';
 
 const SortableItem = React.memo(
   ({ item, section, children, onToggleCollapsed, onRemove }) => {
@@ -179,6 +185,8 @@ const SortableItem = React.memo(
 SortableItem.displayName = "SortableItem";
 
 const Resume = () => {
+  const A4_WIDTH_PX = 794;
+  const A4_HEIGHT_PX = 1123;
   const [formData, setFormData] = useState({
     fullName: "",
     title: "",
@@ -224,6 +232,69 @@ const Resume = () => {
     leftColumnWidth: 50,
     rightColumnWidth: 50,
   });
+  const [spacingConfig, setSpacingConfig] = useState({
+    fontSize: 9, // in pt
+    lineHeight: 1.25,
+    marginLR: 10, // left & right margin in mm
+    marginTB: 10, // top & bottom margin in mm
+    entrySpacing: 12, // px between entries
+  });
+  // Personal details customization
+  const [personalConfig, setPersonalConfig] = useState({
+    align: "center", // left | center | right
+    arrangement: "single", // single | two
+    contactStyle: "icon", // icon | bullet | bar
+  });
+  const [selectedFont, setSelectedFont] = useState({
+    family: "PT Serif",
+    category: "serif",
+    css: "PT+Serif:wght@400;700",
+  });
+
+  const [activeFontCategory, setActiveFontCategory] = useState("serif");
+
+  const fontsByCategory = {
+    serif: [
+      { family: "PT Serif", css: "PT+Serif:wght@400;700" },
+      { family: "Amiri", css: "Amiri:ital,wght@0,400;0,700" },
+      { family: "Vollkorn", css: "Vollkorn:ital,wght@0,400;0,700" },
+      { family: "Lora", css: "Lora:ital,wght@0,400;0,700" },
+      { family: "Crimson Pro", css: "Crimson+Pro:ital,wght@0,400;0,700" },
+      { family: "EB Garamond", css: "EB+Garamond:ital,wght@0,400;0,700" },
+      { family: "Zilla Slab", css: "Zilla+Slab:ital,wght@0,400;0,700" },
+      { family: "Cormorant Garamond", css: "Cormorant+Garamond:ital,wght@0,400;0,700" },
+    ],
+    sans: [
+      { family: "Inter", css: "Inter:ital,wght@0,400;0,700" },
+      { family: "Source Sans 3", css: "Source+Sans+3:ital,wght@0,400;0,700" },
+      { family: "Roboto", css: "Roboto:ital,wght@0,400;0,700" },
+      { family: "Montserrat", css: "Montserrat:ital,wght@0,400;0,700" },
+      { family: "Lato", css: "Lato:ital,wght@0,400;0,700" },
+      { family: "Open Sans", css: "Open+Sans:ital,wght@0,400;0,700" },
+    ],
+    mono: [
+      { family: "Roboto Mono", css: "Roboto+Mono:ital,wght@0,400;0,700" },
+      { family: "Source Code Pro", css: "Source+Code+Pro:ital,wght@0,400;0,700" },
+      { family: "Fira Code", css: "Fira+Code:ital,wght@0,400;0,700" },
+      { family: "JetBrains Mono", css: "JetBrains+Mono:ital,wght@0,400;0,700" },
+      { family: "Inconsolata", css: "Inconsolata:ital,wght@0,400;0,700" },
+    ],
+  };
+
+  const loadGoogleFont = (cssFamily) => {
+    // check if already loaded
+    if (document.querySelector(`link[data-googlefont='${cssFamily}']`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${cssFamily}&display=swap`;
+    link.setAttribute("data-googlefont", cssFamily);
+    document.head.appendChild(link);
+  };
+
+  // load initial font
+  React.useEffect(() => {
+    if (selectedFont && selectedFont.css) loadGoogleFont(selectedFont.css);
+  }, [selectedFont]);
   const [sectionOrder, setSectionOrder] = useState([
     "education",
     "experience",
@@ -235,16 +306,6 @@ const Resume = () => {
     "publications",
     "projects",
   ]);
-  const [toolbarState, setToolbarState] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    insertUnorderedList: false,
-    insertOrderedList: false,
-    justifyLeft: false,
-    justifyCenter: false,
-    justifyRight: false,
-  });
 
   const availableSections = [
     {
@@ -381,6 +442,76 @@ const Resume = () => {
     return [formData.linkedin, formData.github].filter(Boolean).join(" | ");
   }, [formData.github, formData.linkedin]);
 
+  const ContactIcon = ({ type }) => {
+    if (type === 'email') return <FaEnvelope className="text-slate-500" />;
+    if (type === 'phone') return <FaPhone className="text-slate-500" />;
+    if (type === 'location') return <FaMapMarkerAlt className="text-slate-500" />;
+    if (type === 'linkedin') return <FaLinkedin className="text-indigo-600" />;
+    if (type === 'github') return <FaGithub className="text-indigo-600" />;
+    return <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />;
+  };
+
+  const renderContactInfo = () => {
+    const parts = [
+      { v: formData.email, t: 'email' },
+      { v: formData.phone, t: 'phone' },
+      { v: formData.location, t: 'location' },
+    ].filter(p => p.v);
+    const secondary = [
+      { v: formData.linkedin, t: 'linkedin' },
+      { v: formData.github, t: 'github' },
+    ].filter(p => p.v);
+
+    // row-wise spread across single row (two arrangement means spread primary left and secondary right)
+    if (personalConfig.arrangement === 'two') {
+      return (
+        <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+          <div className="flex items-center gap-4">
+            {parts.map(p => (
+              <div key={p.v} className="inline-flex items-center gap-2"><ContactIcon type={p.t} />{p.v}</div>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 text-indigo-500">
+            {secondary.map(s => (
+              <div key={s.v} className="inline-flex items-center gap-2"><ContactIcon type={s.t} />{s.v}</div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // single arrangement
+    if (personalConfig.contactStyle === 'bullet') {
+      return (
+        <div className="mt-3 text-xs text-slate-600">
+          {parts.map((p) => (
+            <span key={p.v} className="inline-block mr-3">• {p.v}</span>
+          ))}
+          {secondary.length > 0 && (<div className="mt-1 text-xs uppercase tracking-wider text-indigo-500">{secondary.map(s => s.v).join(' | ')}</div>)}
+        </div>
+      );
+    }
+
+    if (personalConfig.contactStyle === 'bar') {
+      return (
+        <div className="mt-3 text-xs text-slate-600">
+          {parts.map(p => p.v).join(' | ')}
+          {secondary.length > 0 && (<div className="mt-1 text-xs uppercase tracking-wider text-indigo-500">{secondary.map(s => s.v).join(' | ')}</div>)}
+        </div>
+      );
+    }
+
+    // default: icon style (semantic icons)
+    return (
+      <div className="mt-3 text-xs text-slate-600">
+        {parts.map(p => (
+          <span key={p.v} className="inline-flex items-center mr-3 gap-2"><ContactIcon type={p.t} />{p.v}</span>
+        ))}
+        {secondary.length > 0 && (<div className="mt-1 text-xs uppercase tracking-wider text-indigo-500">{secondary.map(s => s.v).join(' | ')}</div>)}
+      </div>
+    );
+  };
+
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -411,139 +542,6 @@ const Resume = () => {
     newOrder.splice(toIndex, 0, moved);
     setSectionOrder(newOrder);
   };
-
-  const execCmd = (command, value = null) => {
-    document.execCommand(command, false, value);
-    refreshToolbarState();
-  };
-
-  const refreshToolbarState = () => {
-    setToolbarState({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
-      insertOrderedList: document.queryCommandState("insertOrderedList"),
-      justifyLeft: document.queryCommandState("justifyLeft"),
-      justifyCenter: document.queryCommandState("justifyCenter"),
-      justifyRight: document.queryCommandState("justifyRight"),
-    });
-  };
-
-  const insertLink = () => {
-    const url = prompt("Enter URL:");
-    if (url) execCmd("createLink", url);
-  };
-
-  const RichTextToolbar = () => (
-    <div className="flex flex-wrap items-center gap-1 p-2 border border-slate-200 rounded-lg bg-slate-50 mb-2">
-      <button
-        type="button"
-        onClick={() => execCmd("bold")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.bold ? "bg-purple-200 text-purple-700" : "text-slate-600"
-        }`}
-        title="Bold"
-      >
-        <FaBold size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => execCmd("italic")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.italic
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Italic"
-      >
-        <FaItalic size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => execCmd("underline")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.underline
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Underline"
-      >
-        <FaUnderline size={14} />
-      </button>
-      <div className="w-px h-6 bg-slate-300 mx-1" />
-      <button
-        type="button"
-        onClick={() => execCmd("insertUnorderedList")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.insertUnorderedList
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Bullet List"
-      >
-        <FaListUl size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => execCmd("insertOrderedList")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.insertOrderedList
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Numbered List"
-      >
-        <FaListOl size={14} />
-      </button>
-      <div className="w-px h-6 bg-slate-300 mx-1" />
-      <button
-        type="button"
-        onClick={insertLink}
-        className="p-2 rounded hover:bg-slate-200 transition text-slate-600"
-        title="Insert Link"
-      >
-        <FiLink size={14} />
-      </button>
-      <div className="w-px h-6 bg-slate-300 mx-1" />
-      <button
-        type="button"
-        onClick={() => execCmd("justifyLeft")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.justifyLeft
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Align Left"
-      >
-        <FaAlignLeft size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => execCmd("justifyCenter")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.justifyCenter
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Align Center"
-      >
-        <FaAlignCenter size={14} />
-      </button>
-      <button
-        type="button"
-        onClick={() => execCmd("justifyRight")}
-        className={`p-2 rounded hover:bg-slate-200 transition ${
-          toolbarState.justifyRight
-            ? "bg-purple-200 text-purple-700"
-            : "text-slate-600"
-        }`}
-        title="Align Right"
-      >
-        <FaAlignRight size={14} />
-      </button>
-    </div>
-  );
 
   const addSection = (sectionId) => {
     const sectionTemplate = availableSections.find((s) => s.id === sectionId);
@@ -852,25 +850,10 @@ const Resume = () => {
                       />
                     </div>
                     <div>
-                      <RichTextToolbar />
-                      <div
-                        contentEditable
-                        onInput={(e) =>
-                          updateSectionItem(
-                            section.id,
-                            item.id,
-                            "description",
-                            e.currentTarget.innerHTML
-                          )
-                        }
-                        onMouseUp={refreshToolbarState}
-                        onKeyUp={refreshToolbarState}
-                        onFocus={refreshToolbarState}
-                        dangerouslySetInnerHTML={{
-                          __html: item.data.description || "",
-                        }}
-                        className="w-full min-h-[80px] rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        style={{ whiteSpace: "pre-wrap" }}
+                      <RichTextEditor
+                        value={item.data.description}
+                        onChange={(html) => updateSectionItem(section.id, item.id, "description", html)}
+                        className="min-h-[80px]"
                       />
                     </div>
                   </div>
@@ -955,30 +938,16 @@ const Resume = () => {
                       />
                     </div>
                     <div>
-                      <RichTextToolbar />
-                      <div
-                        contentEditable
-                        onInput={(e) =>
-                          updateSectionItem(
-                            section.id,
-                            item.id,
-                            "description",
-                            e.currentTarget.innerHTML
-                          )
-                        }
-                        onMouseUp={refreshToolbarState}
-                        onKeyUp={refreshToolbarState}
-                        onFocus={refreshToolbarState}
-                        dangerouslySetInnerHTML={{
-                          __html: item.data.description || "",
-                        }}
-                        className="w-full min-h-[100px] rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        style={{ whiteSpace: "pre-wrap" }}
+                      <RichTextEditor
+                        value={item.data.description}
+                        onChange={(html) => updateSectionItem(section.id, item.id, "description", html)}
+                        className="min-h-[100px]"
                       />
                     </div>
                   </div>
                 </SortableItem>
               ))}
+              
             </SortableContext>
           </DndContext>
         );
@@ -1017,25 +986,10 @@ const Resume = () => {
                       className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
                     />
                     <div>
-                      <RichTextToolbar />
-                      <div
-                        contentEditable
-                        onInput={(e) =>
-                          updateSectionItem(
-                            section.id,
-                            item.id,
-                            "description",
-                            e.currentTarget.innerHTML
-                          )
-                        }
-                        onMouseUp={refreshToolbarState}
-                        onKeyUp={refreshToolbarState}
-                        onFocus={refreshToolbarState}
-                        dangerouslySetInnerHTML={{
-                          __html: item.data.description || "",
-                        }}
-                        className="w-full min-h-[60px] rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        style={{ whiteSpace: "pre-wrap" }}
+                      <RichTextEditor
+                        value={item.data.description}
+                        onChange={(html) => updateSectionItem(section.id, item.id, "description", html)}
+                        className="min-h-[60px]"
                       />
                     </div>
                   </div>
@@ -1105,25 +1059,10 @@ const Resume = () => {
                       className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
                     />
                     <div>
-                      <RichTextToolbar />
-                      <div
-                        contentEditable
-                        onInput={(e) =>
-                          updateSectionItem(
-                            section.id,
-                            item.id,
-                            "description",
-                            e.currentTarget.innerHTML
-                          )
-                        }
-                        onMouseUp={refreshToolbarState}
-                        onKeyUp={refreshToolbarState}
-                        onFocus={refreshToolbarState}
-                        dangerouslySetInnerHTML={{
-                          __html: item.data.description || "",
-                        }}
-                        className="w-full min-h-[80px] rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        style={{ whiteSpace: "pre-wrap" }}
+                      <RichTextEditor
+                        value={item.data.description}
+                        onChange={(html) => updateSectionItem(section.id, item.id, "description", html)}
+                        className="min-h-[80px]"
                       />
                     </div>
                   </div>
@@ -1167,25 +1106,10 @@ const Resume = () => {
                       className="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm"
                     />
                     <div>
-                      <RichTextToolbar />
-                      <div
-                        contentEditable
-                        onInput={(e) =>
-                          updateSectionItem(
-                            section.id,
-                            item.id,
-                            "description",
-                            e.currentTarget.innerHTML
-                          )
-                        }
-                        onMouseUp={refreshToolbarState}
-                        onKeyUp={refreshToolbarState}
-                        onFocus={refreshToolbarState}
-                        dangerouslySetInnerHTML={{
-                          __html: item.data.description || "",
-                        }}
-                        className="w-full min-h-[80px] rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        style={{ whiteSpace: "pre-wrap" }}
+                      <RichTextEditor
+                        value={item.data.description}
+                        onChange={(html) => updateSectionItem(section.id, item.id, "description", html)}
+                        className="min-h-[80px]"
                       />
                     </div>
                   </div>
@@ -1202,9 +1126,9 @@ const Resume = () => {
     if (!section.items.length) return null;
 
     const renderItem = (item) => (
-      <div key={item.id} className="mb-4">
+      <div key={item.id} className="resume-entry" style={{}}>
         {item.data.title && (
-          <h3 className="font-bold text-slate-900">{item.data.title}</h3>
+          <h3 className="resume-item-title font-bold text-slate-900">{item.data.title}</h3>
         )}
         {item.data.subtitle && (
           <p className="text-sm italic text-slate-700">
@@ -1220,7 +1144,8 @@ const Resume = () => {
         )}
         {item.data.description && (
           <div
-            className="text-sm text-slate-700 mt-2"
+            className="resume-item-description text-sm text-slate-700 mt-2"
+            style={{ lineHeight: spacingConfig.lineHeight }}
             dangerouslySetInnerHTML={{ __html: item.data.description }}
           />
         )}
@@ -1228,48 +1153,13 @@ const Resume = () => {
     );
 
     return (
-      <div key={section.id} className="mt-6">
-        <h2 className="text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
+      <div key={section.id} className="mb-6">
+        <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
           {section.name.toUpperCase()}
         </h2>
-        
-        {layoutConfig.columns === "one" ? (
-          // Single column layout
-          <div>
-            {section.items.map((item) => renderItem(item))}
-          </div>
-        ) : layoutConfig.columns === "two" ? (
-          // Two column layout - right column first, then left
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              {/* Right column */}
-              {section.items.map((item, idx) => idx % 2 === 0 && renderItem(item))}
-            </div>
-            <div>
-              {/* Left column */}
-              {section.items.map((item, idx) => idx % 2 === 1 && renderItem(item))}
-            </div>
-          </div>
-        ) : (
-          // Mix layout - first item full width, rest in two columns
-          <div>
-            {section.items[0] && (
-              <div className="mb-6 pb-4 border-b border-slate-200">
-                {renderItem(section.items[0])}
-              </div>
-            )}
-            {section.items.length > 1 && (
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  {section.items.map((item, idx) => idx > 0 && idx % 2 === 1 && renderItem(item))}
-                </div>
-                <div>
-                  {section.items.map((item, idx) => idx > 0 && idx % 2 === 0 && renderItem(item))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <div>
+          {section.items.map((item) => renderItem(item))}
+        </div>
       </div>
     );
   };
@@ -1309,10 +1199,10 @@ const Resume = () => {
       </header>
 
       <main className="flex-1 w-full pt-20">
-        <div className="mx-auto flex w-full max-w-7xl gap-6 px-6 md:flex-row h-[calc(100vh-80px)]">
+        <div className="mx-auto flex w-full  px-6 md:flex-row items-start h-[calc(100vh-80px)] justify-center pt-4">
           {/* Left Editor Column */}
-          <section className="w-full md:w-1/2 h-full">
-            <div className="rounded-2xl bg-white/90 p-8 shadow-xl ring-1 ring-indigo-100 h-full flex flex-col">
+          <section className="  h-full">
+            <div className="w-full rounded-2xl bg-white/90 p-8 shadow-xl ring-1 ring-indigo-100 h-full flex flex-col">
               {/* Tabs */}
               <div className="flex items-center gap-2 mb-6 border-b border-slate-200">
                 <button
@@ -1460,6 +1350,166 @@ const Resume = () => {
                       </div>
                     </div>
 
+                    {/* Font Section */}
+                    <div className="mb-8">
+                      <h3 className="text-base font-semibold text-slate-800 mb-4">Font</h3>
+                      <div className="flex items-center gap-3 mb-4">
+                        {['serif', 'sans', 'mono'].map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setActiveFontCategory(cat)}
+                            className={`px-4 py-2 rounded-lg border transition text-sm ${activeFontCategory === cat ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}
+                          >
+                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        {fontsByCategory[activeFontCategory].map((f) => (
+                          <button
+                            key={f.family}
+                            onClick={() => { setSelectedFont({ family: f.family, category: activeFontCategory, css: f.css }); loadGoogleFont(f.css); }}
+                            className={`w-full text-left px-4 py-2 rounded-lg border transition text-sm ${selectedFont.family === f.family ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}
+                          >
+                            {f.family}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Personal Details Section */}
+                    <div className="mb-8">
+                      <h3 className="text-base font-semibold text-slate-800 mb-4">Personal Details</h3>
+
+                      <div className="mb-4">
+                        <div className="mb-2 text-sm font-medium text-slate-700">Align</div>
+                        <div className="flex gap-3">
+                          {[
+                            { key: 'left', label: 'Left' },
+                            { key: 'center', label: 'Center' },
+                            { key: 'right', label: 'Right' },
+                          ].map(opt => (
+                            <button
+                              key={opt.key}
+                              onClick={() => setPersonalConfig(prev => ({ ...prev, align: opt.key }))}
+                              className={`px-4 py-3 rounded-lg border w-32 text-sm ${personalConfig.align === opt.key ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="mb-2 text-sm font-medium text-slate-700">Arrangement</div>
+                        <div className="flex gap-3">
+                          <button onClick={() => setPersonalConfig(prev => ({ ...prev, arrangement: 'single' }))} className={`px-4 py-3 rounded-lg border w-40 text-sm ${personalConfig.arrangement === 'single' ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}>Single column</button>
+                          <button onClick={() => setPersonalConfig(prev => ({ ...prev, arrangement: 'two' }))} className={`px-4 py-3 rounded-lg border w-40 text-sm ${personalConfig.arrangement === 'two' ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}>Two columns</button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="mb-2 text-sm font-medium text-slate-700">Contact style</div>
+                        <div className="flex gap-3">
+                          <button onClick={() => setPersonalConfig(prev => ({ ...prev, contactStyle: 'icon' }))} className={`px-4 py-3 rounded-lg border w-32 text-sm ${personalConfig.contactStyle === 'icon' ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}>Icon</button>
+                          <button onClick={() => setPersonalConfig(prev => ({ ...prev, contactStyle: 'bullet' }))} className={`px-4 py-3 rounded-lg border w-32 text-sm ${personalConfig.contactStyle === 'bullet' ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}>Bullet</button>
+                          <button onClick={() => setPersonalConfig(prev => ({ ...prev, contactStyle: 'bar' }))} className={`px-4 py-3 rounded-lg border w-32 text-sm ${personalConfig.contactStyle === 'bar' ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-slate-200 text-slate-700'}`}>Bar</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Spacing Section */}
+                    <div className="mb-8">
+                      <h3 className="text-base font-semibold text-slate-800 mb-4">Spacing</h3>
+
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-slate-700">Font Size</label>
+                          <span className="text-sm text-slate-600">{spacingConfig.fontSize}pt</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="8"
+                          max="14"
+                          value={spacingConfig.fontSize}
+                          onChange={(e) =>
+                            setSpacingConfig((prev) => ({ ...prev, fontSize: parseInt(e.target.value) }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-slate-700">Line Height</label>
+                          <span className="text-sm text-slate-600">{spacingConfig.lineHeight}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="2"
+                          step="0.05"
+                          value={spacingConfig.lineHeight}
+                          onChange={(e) =>
+                            setSpacingConfig((prev) => ({ ...prev, lineHeight: parseFloat(e.target.value) }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="mb-6 grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-slate-700">Left & Right Margin</label>
+                            <span className="text-sm text-slate-600">{spacingConfig.marginLR}mm</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="25"
+                            value={spacingConfig.marginLR}
+                            onChange={(e) =>
+                              setSpacingConfig((prev) => ({ ...prev, marginLR: parseInt(e.target.value) }))
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="text-sm font-medium text-slate-700">Top & Bottom Margin</label>
+                            <span className="text-sm text-slate-600">{spacingConfig.marginTB}mm</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="25"
+                            value={spacingConfig.marginTB}
+                            onChange={(e) =>
+                              setSpacingConfig((prev) => ({ ...prev, marginTB: parseInt(e.target.value) }))
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-slate-700">Space between Entries</label>
+                          <span className="text-sm text-slate-600">{spacingConfig.entrySpacing}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="30"
+                          value={spacingConfig.entrySpacing}
+                          onChange={(e) =>
+                            setSpacingConfig((prev) => ({ ...prev, entrySpacing: parseInt(e.target.value) }))
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
                     {/* Section Order */}
                     <div className="border-t border-slate-200 pt-6">
                       <h3 className="text-base font-semibold text-slate-800 mb-4">
@@ -1582,23 +1632,10 @@ const Resume = () => {
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                       Professional Profile
                     </label>
-                    <RichTextToolbar />
-                    <div
-                      contentEditable
-                      onInput={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          profile: e.currentTarget.innerHTML,
-                        }))
-                      }
-                      onMouseUp={refreshToolbarState}
-                      onKeyUp={refreshToolbarState}
-                      onFocus={refreshToolbarState}
-                      dangerouslySetInnerHTML={{
-                        __html: formData.profile || "",
-                      }}
-                      className="w-full min-h-[100px] rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      style={{ whiteSpace: "pre-wrap" }}
+                    <RichTextEditor
+                      value={formData.profile}
+                      onChange={(html) => setFormData((prev) => ({ ...prev, profile: html }))}
+                      className="min-h-[100px]"
                     />
                   </div>
                     </div>
@@ -1772,67 +1809,187 @@ const Resume = () => {
           </section>
 
           {/* Right Preview Column */}
-          <section className="w-full md:w-1/2 h-full">
-            <div
-              ref={combinedPreviewRef}
-              className="relative h-full rounded-2xl bg-white/95 p-10 shadow-xl ring-1 ring-indigo-100 flex flex-col"
-            >
-              <div className="flex-1 overflow-y-auto hide-scrollbar">
-                <div className="absolute right-6 top-6 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                  <span className="h-2 w-2 rounded-full bg-indigo-500" /> Live
-                  preview
-                </div>
-
-                {/* Header with photo */}
-                <div className={`${layoutConfig.headerPosition === "left" ? "flex gap-6" : layoutConfig.headerPosition === "right" ? "flex gap-6 flex-row-reverse" : "block"} ${layoutConfig.headerPosition === "top" ? "border-b border-slate-200 pb-6" : ""}`}>
-                  {formData.photoUrl && (
-                    <div className={`${layoutConfig.headerPosition === "top" ? "h-24 w-24" : "h-20 w-20"} rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0`}>
-                      <img
-                        src={formData.photoUrl}
-                        alt="profile"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div className={`${layoutConfig.headerPosition === "top" ? "" : "flex-1"}`}>
-                    <h1 className="text-3xl font-semibold text-slate-900">
-                      {formData.fullName || "Your Name"}
-                    </h1>
-                    <p className="mt-1 text-sm font-medium text-indigo-600">
-                      {formData.title || "Professional Title"}
-                    </p>
-                    {contactLine && (
-                      <p className="mt-3 text-xs text-slate-500">
-                        {contactLine}
-                      </p>
-                    )}
-                    {secondaryLine && (
-                      <p className="mt-1 text-xs uppercase tracking-wider text-indigo-500">
-                        {secondaryLine}
-                      </p>
-                    )}
+          <section className=" md:flex-[0_0_auto] h-full flex justify-center flex-col">
+            <div className="flex-1 overflow-auto hide-scrollbar">
+              <div className="flex items-start justify-center  px-2">
+                <div className="relative">
+                  <div
+                    className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600"
+                    data-html2canvas-ignore="true"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-indigo-500" /> Live
+                    preview
                   </div>
-                </div>
-
-                {/* Profile */}
-                <div>
-                  {formData.profile && (
-                    <div className="mt-6">
-                      <h2 className="text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
-                        PROFILE
-                      </h2>
+                  <div
+                    ref={combinedPreviewRef}
+                    className="resume-preview relative w-[794px] h-[1123px] bg-white shadow-xl ring-1 ring-indigo-100 border border-slate-200 overflow-hidden"
+                    style={{
+                      width: `${A4_WIDTH_PX}px`,
+                      minWidth: `${A4_WIDTH_PX}px`,
+                      height: `${A4_HEIGHT_PX}px`,
+                      minHeight: `${A4_HEIGHT_PX}px`,
+                      padding: `${spacingConfig.marginTB * 3.78}px ${spacingConfig.marginLR * 3.78}px`,
+                      // expose CSS variables for font-size, line-height and entry spacing
+                      ['--resume-font-size']: `${spacingConfig.fontSize}pt`,
+                      ['--resume-line-height']: spacingConfig.lineHeight,
+                      ['--resume-entry-spacing']: `${spacingConfig.entrySpacing}px`,
+                      fontFamily: selectedFont.family ? `'${selectedFont.family}', serif` : undefined,
+                    }}
+                  >
+                    <style>{`
+                      /* Derived sizes to create a typographic hierarchy based on the base font size */
+                      .resume-preview {
+                        --resume-size-name: calc(var(--resume-font-size) * 2.2);
+                        --resume-size-role: calc(var(--resume-font-size) * 1.15);
+                        --resume-size-section: calc(var(--resume-font-size) * 1.15);
+                        --resume-size-title: calc(var(--resume-font-size) * 1.0);
+                        --resume-size-body: calc(var(--resume-font-size) * 0.95);
+                        font-size: var(--resume-size-body);
+                        line-height: var(--resume-line-height);
+                      }
+                      /* Specific element overrides to form a clear hierarchy */
+                      .resume-preview .resume-name { font-size: var(--resume-size-name) !important; line-height: 1.05 !important; }
+                      .resume-preview .resume-role { font-size: var(--resume-size-role) !important; color: #4f46e5 !important; }
+                      .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
+                      .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
+                      .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; }
+                      .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
+                    `}</style>
+                    <div className="h-full flex flex-col">
+                      {/* Header with photo */}
                       <div
-                        className="text-sm text-slate-700 leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: formData.profile }}
-                      />
-                    </div>
-                  )}
+                        className={`${
+                          layoutConfig.headerPosition === "left"
+                            ? "flex gap-6"
+                            : layoutConfig.headerPosition === "right"
+                            ? "flex gap-6 flex-row-reverse"
+                            : "block"
+                        } ${layoutConfig.headerPosition === "top" ? "border-b border-slate-200 pb-6" : ""}`}
+                        style={{ textAlign: personalConfig.align }}
+                      >
+                        {formData.photoUrl && (
+                          <div
+                            className={`${
+                              layoutConfig.headerPosition === "top" ? "h-24 w-24" : "h-20 w-20"
+                            } rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0`}
+                          >
+                            <img
+                              src={formData.photoUrl}
+                              alt="profile"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className={`${layoutConfig.headerPosition === "top" ? "" : "flex-1"}`}>
+                          {personalConfig.align === 'center' ? (
+                            <>
+                              <h1 className="resume-name text-3xl font-semibold text-slate-900">
+                                {formData.fullName || "Your Name"}
+                              </h1>
+                              <p className="resume-role mt-1 text-sm font-medium text-indigo-600">
+                                {formData.title || "Professional Title"}
+                              </p>
+                            </>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              {personalConfig.align === 'left' ? (
+                                <>
+                                  <h1 className="resume-name text-3xl font-semibold text-slate-900 mr-4">
+                                    {formData.fullName || "Your Name"}
+                                  </h1>
+                                  <p className="resume-role text-sm font-medium text-indigo-600">
+                                    {formData.title || "Professional Title"}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="resume-role text-sm font-medium text-indigo-600">
+                                    {formData.title || "Professional Title"}
+                                  </p>
+                                  <h1 className="resume-name text-3xl font-semibold text-slate-900">
+                                    {formData.fullName || "Your Name"}
+                                  </h1>
+                                </>
+                              )}
+                            </div>
+                          )}
 
-                  {/* Dynamic Sections */}
-                  {sectionOrder
-                    .map((sectionId) => sections.find((s) => s.id === sectionId))
-                    .filter((section) => section && section.visible)
-                    .map((section) => renderPreviewSection(section))}
+                          {renderContactInfo()}
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex-1 overflow-hidden">
+                        {formData.profile && (
+                          <div className="mb-6">
+                            <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
+                              PROFILE
+                            </h2>
+                            <div
+                              className="text-sm text-slate-700 leading-relaxed"
+                              dangerouslySetInnerHTML={{ __html: formData.profile }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Dynamic Sections */}
+                        {(() => {
+                          const visibleSections = sectionOrder
+                            .map((sectionId) => sections.find((s) => s.id === sectionId))
+                            .filter((section) => section && section.visible);
+                          if (layoutConfig.columns === "one") {
+                            return (
+                              <div className="space-y-6">
+                                {visibleSections.map((section) => renderPreviewSection(section))}
+                              </div>
+                            );
+                          } else if (layoutConfig.columns === "two") {
+                            const leftSections = visibleSections.filter((_, idx) => idx % 2 === 0);
+                            const rightSections = visibleSections.filter((_, idx) => idx % 2 === 1);
+                            return (
+                              <div
+                                className="grid gap-6"
+                                style={{
+                                  gridTemplateColumns: `${layoutConfig.leftColumnWidth}% ${layoutConfig.rightColumnWidth}%`,
+                                }}
+                              >
+                                <div className="space-y-6">
+                                  {leftSections.map((section) => renderPreviewSection(section))}
+                                </div>
+                                <div className="space-y-6">
+                                  {rightSections.map((section) => renderPreviewSection(section))}
+                                </div>
+                              </div>
+                            );
+                          } else { // mix
+                            const first = visibleSections[0];
+                            const rest = visibleSections.slice(1);
+                            const leftRest = rest.filter((_, idx) => idx % 2 === 0);
+                            const rightRest = rest.filter((_, idx) => idx % 2 === 1);
+                            return (
+                              <div>
+                                {first && renderPreviewSection(first)}
+                                {rest.length > 0 && (
+                                  <div
+                                    className="grid gap-6 mt-6"
+                                    style={{
+                                      gridTemplateColumns: `${layoutConfig.leftColumnWidth}% ${layoutConfig.rightColumnWidth}%`,
+                                    }}
+                                  >
+                                    <div className="space-y-6">
+                                      {leftRest.map((section) => renderPreviewSection(section))}
+                                    </div>
+                                    <div className="space-y-6">
+                                      {rightRest.map((section) => renderPreviewSection(section))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
