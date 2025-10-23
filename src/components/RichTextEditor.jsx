@@ -1,169 +1,138 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import {
-  FaBold,
-  FaItalic,
-  FaUnderline,
-  FaListUl,
-  FaListOl,
-  FaAlignLeft,
-  FaAlignCenter,
-  FaAlignRight,
-} from 'react-icons/fa';
-import { FiLink } from 'react-icons/fi';
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Link,
+  Image,
+} from "lucide-react";
 
-const RichTextEditor = ({ value, onChange, className = '', style = {} }) => {
-  const [toolbarState, setToolbarState] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    insertUnorderedList: false,
-    insertOrderedList: false,
-    justifyLeft: false,
-    justifyCenter: false,
-    justifyRight: false,
-  });
-
+const RichTextEditor = ({ 
+  initialContent = '', 
+  onChange = () => {}, 
+  placeholder = 'Start typing...',  
+  className = ''
+}) => {
   const editorRef = useRef(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
+    if (editorRef.current && initialContent && !editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = initialContent;
     }
-  }, [value]);
+  }, [initialContent]);
 
-  const execCmd = (command, value = null) => {
+  const execCommand = (command, value = null) => {
     document.execCommand(command, false, value);
-    refreshToolbarState();
+    editorRef.current?.focus();
+    handleContentChange();
   };
 
-  const refreshToolbarState = () => {
-    setToolbarState({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      insertUnorderedList: document.queryCommandState("insertUnorderedList"),
-      insertOrderedList: document.queryCommandState("insertOrderedList"),
-      justifyLeft: document.queryCommandState("justifyLeft"),
-      justifyCenter: document.queryCommandState("justifyCenter"),
-      justifyRight: document.queryCommandState("justifyRight"),
-    });
+  const handleContentChange = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
   };
 
   const insertLink = () => {
-    const url = prompt("Enter URL:");
-    if (url) execCmd("createLink", url);
+    const url = prompt('Enter URL:');
+    if (url) {
+      execCommand('createLink', url);
+    }
   };
 
+  const insertImage = () => {
+    const url = prompt('Enter image URL:');
+    if (url) {
+      execCommand('insertImage', url);
+    }
+  };
+
+  const changeFontSize = (e) => {
+    const size = e.target.value;
+    execCommand('fontSize', size);
+  };
+
+  const buttons = [
+    { icon: Bold, command: 'bold', title: 'Bold (Ctrl+B)' },
+    { icon: Italic, command: 'italic', title: 'Italic (Ctrl+I)' },
+    { icon: Underline, command: 'underline', title: 'Underline (Ctrl+U)' },
+    { icon: List, command: 'insertUnorderedList', title: 'Bullet List' },
+    { icon: ListOrdered, command: 'insertOrderedList', title: 'Numbered List' },
+    
+  ];
+
   return (
-    <div>
-      <div className="flex flex-wrap items-center gap-1 p-2 border border-slate-200 rounded-lg bg-slate-50 mb-2">
-        <button
-          type="button"
-          onClick={() => execCmd("bold")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.bold ? "bg-purple-200 text-purple-700" : "text-slate-600"
+    <div className={`w-full max-w-4xl mx-auto ${className}`}>
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-lg">
+        {/* Toolbar */}
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-gray-200 p-3 flex flex-wrap gap-2 items-center">
+         
+          {buttons.map(({ icon: Icon, command, title, action }) => (
+            <button
+              key={command}
+              onClick={() => action ? action() : execCommand(command)}
+              className="p-2 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-blue-50 group"
+              title={title}
+              type="button"
+            >
+              <Icon size={20} className="text-gray-600 group-hover:text-blue-600 transition-colors" />
+            </button>
+          ))}
+
+          
+        </div>
+
+        {/* Editor */}
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleContentChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={`min-h-64 p-4 focus:outline-none ${
+            isFocused ? 'ring-2 ring-blue-500 ring-inset' : ''
           }`}
-          title="Bold"
-        >
-          <FaBold size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => execCmd("italic")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.italic ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Italic"
-        >
-          <FaItalic size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => execCmd("underline")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.underline ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Underline"
-        >
-          <FaUnderline size={14} />
-        </button>
-        <div className="w-px h-6 bg-slate-300 mx-1" />
-        <button
-          type="button"
-          onClick={() => execCmd("insertUnorderedList")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.insertUnorderedList ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Bullet List"
-        >
-          <FaListUl size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => execCmd("insertOrderedList")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.insertOrderedList ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Numbered List"
-        >
-          <FaListOl size={14} />
-        </button>
-        <div className="w-px h-6 bg-slate-300 mx-1" />
-        <button
-          type="button"
-          onClick={insertLink}
-          className="p-2 rounded hover:bg-slate-200 transition text-slate-600"
-          title="Insert Link"
-        >
-          <FiLink size={14} />
-        </button>
-        <div className="w-px h-6 bg-slate-300 mx-1" />
-        <button
-          type="button"
-          onClick={() => execCmd("justifyLeft")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.justifyLeft ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Align Left"
-        >
-          <FaAlignLeft size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => execCmd("justifyCenter")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.justifyCenter ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Align Center"
-        >
-          <FaAlignCenter size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={() => execCmd("justifyRight")}
-          className={`p-2 rounded hover:bg-slate-200 transition ${
-            toolbarState.justifyRight ? "bg-purple-200 text-purple-700" : "text-slate-600"
-          }`}
-          title="Align Right"
-        >
-          <FaAlignRight size={14} />
-        </button>
+          data-placeholder={placeholder}
+          style={{
+            caretColor: 'black'
+          }}
+        />
       </div>
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={(e) => {
-          if (e.target && onChange) {
-            onChange(e.target.innerHTML);
-          }
-        }}
-        onMouseUp={refreshToolbarState}
-        onKeyUp={refreshToolbarState}
-        onFocus={refreshToolbarState}
-        className={`w-full rounded-lg border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 ${className}`}
-        style={{ whiteSpace: "pre-wrap", ...style }}
-        dir="ltr"
-      />
+
+      <style jsx>{`
+        [contentEditable]:empty:before {
+          content: attr(data-placeholder);
+          color: #9ca3af;
+          pointer-events: none;
+        }
+        [contentEditable] img {
+          max-width: 100%;
+          height: auto;
+        }
+        [contentEditable] a {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+        [contentEditable] ul {
+          list-style-type: disc;
+          padding-left: 2rem;
+          margin: 0.5rem 0;
+        }
+        [contentEditable] ol {
+          list-style-type: decimal;
+          padding-left: 2rem;
+          margin: 0.5rem 0;
+        }
+        [contentEditable] li {
+          margin: 0.25rem 0;
+        }
+      `}</style>
     </div>
   );
 };

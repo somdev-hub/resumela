@@ -17,3 +17,16 @@
 html, body, #root {
   height: 100%;
 }
+
+/* Ensure proper list styles for resume preview */
+.resume-item-description ul {
+  list-style-type: disc !important;
+  /* padding: auto !important; */
+  margin-left: 1rem;
+}
+
+.resume-item-description ol {
+  list-style-type: decimal !important;
+  /* padding: auto !important; */
+  margin-left: 1rem;
+}

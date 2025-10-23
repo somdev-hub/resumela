@@ -1,0 +1,10 @@
+[
+  {
+    "issue": "The sections are getting added in wrong column(in case of two columns view). Some of the sections are getting added to the wrong column in the resume preview.",
+    "fix": "Fix the issue such that one section always gets added below the other section in the same column. And the section should jump to the other column only when there is no more space left in the current column."
+  },
+  {
+    "issue": "The rich text editor toolbar buttons for unordered and ordered lists are not working as expected.",
+    "fix": "all the functionality of the rich text editor toolbar buttons should work as expected, including the unordered and ordered list buttons."
+  }
+]
