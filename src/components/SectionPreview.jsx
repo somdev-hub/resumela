@@ -49,7 +49,13 @@ const SectionPreview = ({ section, spacingConfig }) => {
               >
                 {item.data.title && (
                   <h3 className="resume-item-title font-bold text-slate-900 inline">
-                    {item.data.title}
+                    {item.data.titleUrl ? (
+                      <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer">
+                        {item.data.title}
+                      </a>
+                    ) : (
+                      item.data.title
+                    )}
                     {inlineText && (
                       <>
                         <span className="mx-2">—</span>
@@ -72,7 +78,13 @@ const SectionPreview = ({ section, spacingConfig }) => {
             <div key={item.id} className="resume-entry">
               {item.data.title && (
                 <h3 className="resume-item-title font-bold text-slate-900">
-                  {item.data.title}
+                  {item.data.titleUrl ? (
+                    <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer">
+                      {item.data.title}
+                    </a>
+                  ) : (
+                    item.data.title
+                  )}
                 </h3>
               )}
               {item.data.subtitle && (

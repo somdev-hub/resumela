@@ -1,156 +1,98 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
+// MUI components for polished toasts/dialogs/progress
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Button from "@mui/material/Button";
 import ReactDOM from "react-dom/client";
-import jsPDF from "jspdf";
-import { usePDF } from "react-to-pdf";
+// Map to reuse a React root for measurement containers to avoid createRoot() being called multiple times
+const measurementRoots = new WeakMap();
+// pdf generation is handled server-side; client-side html2canvas/jsPDF removed
+import { FiPlus } from "react-icons/fi";
 import {
-  FiDownload,
-  FiEye,
-  FiPlus,
-  FiX,
-  FiLink,
-  FiEdit2,
-  FiCheck,
-  FiMenu,
-} from "react-icons/fi";
-import {
-  DndContext,
-  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  IconButton,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import UrlDialog from "../components/UrlDialog";
 import AddSectionDialog from "../components/AddSectionDialog";
-import {
-  FaRegFilePdf,
-  FaGraduationCap,
-  FaBriefcase,
-  FaPalette,
-  FaCertificate,
-  FaBook,
-  FaTrophy,
-  FaUsers,
-  FaFileAlt,
-  FaUserTie,
-  FaPencilAlt,
-  FaList,
-  FaGlobe,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaLinkedin,
-  FaGithub,
-  FaBold,
-  FaItalic,
-  FaUnderline,
-  FaListUl,
-  FaListOl,
-  FaAlignLeft,
-  FaAlignCenter,
-  FaAlignRight,
-} from "react-icons/fa";
 import RichTextEditor from "../components/RichTextEditor";
 import ResumeHeader from "../components/ResumeHeader";
-import ContactInfo from "../components/ContactInfo";
 import SectionPreview from "../components/SectionPreview";
 import { renderSectionForm } from "../components/SectionForms";
-import SortableItem from "../components/SortableItem";
+import { useParams } from "react-router-dom";
 
 import { availableSections } from "../customization/AvailableSections";
 import { fontsByCategory } from "../customization/Fonts";
 import ResumeNav from "../components/ResumeNav";
+import firestore from "../firebase/firestore";
 
 const Resume = () => {
   // ...existing code...
   const A4_WIDTH_PX = 794;
   const A4_HEIGHT_PX = 1123;
-  const [formData, setFormData] = useState({
-    fullName: "",
-    title: "",
-    email: "",
-    phone: "",
-    location: "",
-    linkedin: "",
-    github: "",
-    linkedinUrl: "",
-    githubUrl: "",
-    profile: "",
-    photoUrl: null,
-  });
 
-  const [sections, setSections] = useState([
-    {
-      id: "education",
-      name: "Education",
-      icon: FaGraduationCap,
-      visible: true,
-      items: [],
+  // Central resume state: single source of truth for resume contents and presentation
+  const [resume, setResume] = useState({
+    formData: {
+      fullName: "",
+      title: "",
+      email: "",
+      phone: "",
+      location: "",
+      linkedin: "",
+      github: "",
+      linkedinUrl: "",
+      githubUrl: "",
+      profile: "",
+      photoUrl: null,
     },
-    {
-      id: "experience",
-      name: "Professional Experience",
-      icon: FaBriefcase,
-      visible: true,
-      items: [],
+    // Start with no sections by default — user will add sections via the Add Section dialog
+    sections: [],
+    layoutConfig: {
+      columns: "two",
+      headerPosition: "top",
+      leftColumnWidth: 50,
+      rightColumnWidth: 50,
     },
-    { id: "skills", name: "Skills", icon: FaPalette, visible: true, items: [] },
-    {
-      id: "projects",
-      name: "Projects",
-      icon: FaList,
-      visible: true,
-      items: [],
+    spacingConfig: {
+      fontSize: 9, // in pt
+      lineHeight: 1.25,
+      marginLR: 10, // left & right margin in mm
+      marginTB: 10, // top & bottom margin in mm
+      entrySpacing: 12, // px between entries
     },
-  ]);
+    personalConfig: {
+      align: "center", // left | center | right
+      arrangement: "single", // single | two
+      contactStyle: "icon", // icon | bullet | bar
+    },
+    selectedFont: {
+      family: "PT Serif",
+      category: "serif",
+      css: "PT+Serif:wght@400;700",
+    },
+    sectionOrder: [
+      "education",
+      "experience",
+      "skills",
+      "certifications",
+      "languages",
+      "volunteering",
+      "awards",
+      "publications",
+      "projects",
+    ],
+  });
 
   const [showAddSection, setShowAddSection] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
-  const [layoutConfig, setLayoutConfig] = useState({
-    columns: "two",
-    headerPosition: "top",
-    leftColumnWidth: 50,
-    rightColumnWidth: 50,
-  });
-  const [spacingConfig, setSpacingConfig] = useState({
-    fontSize: 9, // in pt
-    lineHeight: 1.25,
-    marginLR: 10, // left & right margin in mm
-    marginTB: 10, // top & bottom margin in mm
-    entrySpacing: 12, // px between entries
-  });
-  // Personal details customization
-  const [personalConfig, setPersonalConfig] = useState({
-    align: "center", // left | center | right
-    arrangement: "single", // single | two
-    contactStyle: "icon", // icon | bullet | bar
-  });
-  const [selectedFont, setSelectedFont] = useState({
-    family: "PT Serif",
-    category: "serif",
-    css: "PT+Serif:wght@400;700",
-  });
-
   const [activeFontCategory, setActiveFontCategory] = useState("serif");
 
   // URL dialog state for LinkedIn / GitHub
@@ -158,21 +100,145 @@ const Resume = () => {
     open: false,
     field: null,
     tempUrl: "",
+    target: null, // null | { sectionId, itemId }
   });
 
-  const openUrlDialog = (field) => {
-    setUrlDialog({ open: true, field, tempUrl: formData[field + "Url"] || "" });
+  // firestore doc id used to link content and layout documents
+  const [firestoreDocId, setFirestoreDocId] = useState(null);
+  // local input for loading a specific doc id
+  const [loadDocId, setLoadDocId] = useState("");
+  // saving state & lightweight toast/status
+  const [isSaving, setIsSaving] = useState(false);
+  // snackbar state (replaces inline saveMessage)
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("info");
+  // last saved timestamp
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  // conflict confirmation dialog state
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const pendingSaveRef = useRef({});
+  // refs for autosave debounce & last-saved signature
+  const autosaveTimerRef = useRef(null);
+  const lastSavedSignatureRef = useRef(null);
+  // track last local edit timestamp and per-field edit timestamps to enable three-way merge
+  const lastLocalChangeAtRef = useRef(null);
+  const lastEditsRef = useRef(new Map()); // Map<path, timestamp>
+
+  const showSnackbar = (severity, text, timeout = 3000) => {
+    setSnackbarSeverity(severity);
+    setSnackbarMsg(text);
+    setSnackbarOpen(true);
+    if (timeout) setTimeout(() => setSnackbarOpen(false), timeout);
+  };
+
+  const draftLocalStorageKey = () => {
+    try {
+      return firestoreDocId
+        ? `resume_draft_${firestoreDocId}`
+        : `resume_draft_temp`;
+    } catch {
+      return `resume_draft_temp`;
+    }
+  };
+
+  const saveDraftToLocal = (r) => {
+    try {
+      const sanitized = {
+        formData: r.formData,
+        sections: (r.sections || []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          visible: s.visible,
+          items: (s.items || []).map((it) => ({
+            id: it.id,
+            collapsed: !!it.collapsed,
+            data: it.data || {},
+          })),
+        })),
+      };
+      const payload = {
+        ts: Date.now(),
+        content: sanitized,
+        edits: Array.from(lastEditsRef.current.entries()),
+      };
+      localStorage.setItem(draftLocalStorageKey(), JSON.stringify(payload));
+      lastLocalChangeAtRef.current = Date.now();
+    } catch (e) {
+      // ignore localStorage errors
+    }
+  };
+
+  const openUrlDialog = (target) => {
+    // target can be a string (personal field name) or an object { sectionId, itemId, field }
+    if (typeof target === "string") {
+      setUrlDialog({
+        open: true,
+        field: target,
+        tempUrl: resume.formData[target + "Url"] || "",
+        target: null,
+      });
+    } else {
+      const { sectionId, itemId, field } = target || {};
+      const section = resume.sections.find((s) => s.id === sectionId);
+      const item = section?.items?.find((it) => it.id === itemId);
+      const val = item?.data?.[field + "Url"] || "";
+      setUrlDialog({
+        open: true,
+        field: field || null,
+        tempUrl: val,
+        target: { sectionId, itemId },
+      });
+    }
   };
 
   const closeUrlDialog = () =>
-    setUrlDialog({ open: false, field: null, tempUrl: "" });
+    setUrlDialog({ open: false, field: null, tempUrl: "", target: null });
 
   const saveUrlFromDialog = () => {
     if (!urlDialog.field) return closeUrlDialog();
-    setFormData((prev) => ({
-      ...prev,
-      [urlDialog.field + "Url"]: urlDialog.tempUrl,
-    }));
+
+    if (!urlDialog.target) {
+      // personal field
+      setResume((prev) => ({
+        ...prev,
+        formData: {
+          ...prev.formData,
+          [urlDialog.field + "Url"]: urlDialog.tempUrl,
+        },
+      }));
+      // record edit
+      lastEditsRef.current.set(`formData.${urlDialog.field}Url`, Date.now());
+    } else {
+      // section item field
+      const { sectionId, itemId } = urlDialog.target;
+      setResume((prev) => ({
+        ...prev,
+        sections: prev.sections.map((section) => {
+          if (section.id !== sectionId) return section;
+          return {
+            ...section,
+            items: section.items.map((item) =>
+              item.id === itemId
+                ? {
+                    ...item,
+                    data: {
+                      ...item.data,
+                      [urlDialog.field + "Url"]: urlDialog.tempUrl,
+                    },
+                  }
+                : item
+            ),
+          };
+        }),
+      }));
+      // record edit for that field
+      lastEditsRef.current.set(
+        `sections.${sectionId}.items.${itemId}.data.${urlDialog.field}Url`,
+        Date.now()
+      );
+    }
+
     closeUrlDialog();
   };
 
@@ -186,107 +252,251 @@ const Resume = () => {
     document.head.appendChild(link);
   };
 
-  // load initial font
+  // load initial font from central state
   React.useEffect(() => {
-    if (selectedFont && selectedFont.css) loadGoogleFont(selectedFont.css);
-  }, [selectedFont]);
-  const [sectionOrder, setSectionOrder] = useState([
-    "education",
-    "experience",
-    "skills",
-    "certifications",
-    "languages",
-    "volunteering",
-    "awards",
-    "publications",
-    "projects",
-  ]);
+    if (resume.selectedFont && resume.selectedFont.css)
+      loadGoogleFont(resume.selectedFont.css);
+  }, [resume.selectedFont]);
+
+  // On mount, try to read a persisted firestore doc id
+  useEffect(() => {
+    try {
+      const id = localStorage.getItem("resume_firestore_docId");
+      if (id) {
+        setFirestoreDocId(id);
+        setLoadDocId(id);
+      }
+    } catch (e) {}
+  }, []);
+
+  // keep loadDocId in sync when firestoreDocId changes
+  useEffect(() => {
+    if (firestoreDocId) setLoadDocId(firestoreDocId);
+  }, [firestoreDocId]);
+
+  const params = useParams();
+
+  // Autosave: debounce resume changes and save automatically
+  useEffect(() => {
+    // compute signature of important parts
+    let sig = null;
+    try {
+      sig = JSON.stringify({
+        formData: resume.formData,
+        sections: resume.sections,
+        layoutConfig: resume.layoutConfig,
+        spacingConfig: resume.spacingConfig,
+        personalConfig: resume.personalConfig,
+        selectedFont: resume.selectedFont,
+        sectionOrder: resume.sectionOrder,
+      });
+    } catch (e) {
+      sig = null;
+    }
+
+    if (sig && lastSavedSignatureRef.current === sig) {
+      // still persist draft locally even if signature matches
+      saveDraftToLocal(resume);
+      return; // nothing changed since last save
+    }
+
+    // persist draft locally on every change
+    saveDraftToLocal(resume);
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      // don't autosave while an explicit save/load is in progress
+      if (!isSaving) saveToFirestore({ skipConflictCheck: true });
+    }, 2500);
+
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [resume]);
+
+  // helper to compute a deterministic signature of the important resume parts
+  const computeSignature = (r) => {
+    try {
+      return JSON.stringify({
+        formData: r.formData,
+        sections: r.sections,
+        layoutConfig: r.layoutConfig,
+        spacingConfig: r.spacingConfig,
+        personalConfig: r.personalConfig,
+        selectedFont: r.selectedFont,
+        sectionOrder: r.sectionOrder,
+      });
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const formatLastSaved = (iso) => {
+    if (!iso) return "Never";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch (e) {
+      return iso;
+    }
+  };
+
+  // Local aliases used in render: ensure these are defined to avoid accidental
+  // `spacingConfig` / `layoutConfig` undefined errors in templates that reference
+  // them directly. Use safe fallbacks to an empty object.
+  const spacingConfig = resume?.spacingConfig || {};
+  const layoutConfig = resume?.layoutConfig || {};
 
   const pdfPreviewRef = useRef(null);
   const photoInputRef = useRef(null);
 
   // refs and state for measuring section heights and distributing them into columns
   const measureContainerRef = useRef(null);
-  const measureRefs = useRef({}); // map sectionId -> DOM node
-  const sectionsAreaRef = useRef(null); // the vertical space for sections in preview
-  const [sectionHeights, setSectionHeights] = useState({});
-  const [distributed, setDistributed] = useState({ left: [], right: [], first: null });
-
-  const sanitizedFilename = useMemo(() => {
-    const trimmed = formData.fullName.trim();
-    return trimmed
-      ? trimmed.replace(/[^a-z0-9]+/gi, "_").toLowerCase()
-      : "resume";
-  }, [formData.fullName]);
-
-  const { toPDF, targetRef } = usePDF({
-    filename: `${sanitizedFilename}_resume.pdf`,
-    resolution: 2,
+  const [distributed, setDistributed] = useState({
+    left: [],
+    right: [],
+    first: null,
   });
 
-  const combinedPreviewRef = useCallback(
-    (node) => {
-      pdfPreviewRef.current = node;
-      if (targetRef && "current" in targetRef) {
-        targetRef.current = node;
-      }
-    },
-    [targetRef]
-  );
+  const combinedPreviewRef = useCallback((node) => {
+    pdfPreviewRef.current = node;
+  }, []);
+
+  // DnD sensors for sortable lists in the editor
+  const pointerSensor = useSensor(PointerSensor);
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+  const sensors = useSensors(pointerSensor, keyboardSensor);
+
+  const handleDragEnd = (sectionId, event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const ids = section.items.map((i) => i.id);
+        const oldIndex = ids.indexOf(active.id);
+        const newIndex = ids.indexOf(over.id);
+        if (oldIndex === -1 || newIndex === -1) return section;
+        return {
+          ...section,
+          items: arrayMove(section.items, oldIndex, newIndex),
+        };
+      }),
+    }));
+  };
 
   // Measure section heights and distribute into left/right columns based on available height
   useEffect(() => {
     if (!measureContainerRef.current) return;
 
-    const visibleSections = sectionOrder
-      .map((sectionId) => sections.find((s) => s.id === sectionId))
+    const visibleSections = resume.sectionOrder
+      .map((sectionId) => resume.sections.find((s) => s.id === sectionId))
       .filter((s) => s && s.visible);
 
     // prepare container
     const container = measureContainerRef.current;
-    container.innerHTML = "";
 
-    // set container width in px to match left column width in preview
+    // compute px per mm conversion used elsewhere
+    const PX_PER_MM = 3.78;
+
+    // set container width in px to match actual left column width in preview (more reliable)
     const preview = pdfPreviewRef.current;
     if (preview) {
-      const previewInnerWidth = preview.clientWidth - (spacingConfig.marginLR * 2 * 3.78 || 0);
-      const leftPx = Math.floor((layoutConfig.leftColumnWidth / 100) * previewInnerWidth);
-      container.style.width = `${leftPx}px`;
+      // try to locate the actual grid container with inline grid-template-columns style
+      const grid = preview.querySelector('[style*="grid-template-columns"]');
+      if (grid && grid.children && grid.children.length >= 1) {
+        const leftCol = grid.children[0];
+        if (leftCol && leftCol.clientWidth) {
+          container.style.width = `${leftCol.clientWidth}px`;
+        }
+      }
+
+      // fallback: compute from preview inner width minus LR padding
+      if (!container.style.width) {
+        const paddingLR = (resume.spacingConfig.marginLR || 0) * PX_PER_MM;
+        const previewInnerWidth = preview.clientWidth - paddingLR * 2;
+        const leftPx = Math.floor(
+          (resume.layoutConfig.leftColumnWidth / 100) * previewInnerWidth
+        );
+        container.style.width = `${leftPx}px`;
+      }
+
+      container.style.boxSizing = "border-box";
+
+      // copy relevant CSS variables and font-family from preview to measurement container
+      const cs = getComputedStyle(preview);
+      [
+        "--resume-font-size",
+        "--resume-line-height",
+        "--resume-entry-spacing",
+      ].forEach((v) => {
+        const val = cs.getPropertyValue(v);
+        if (val) container.style.setProperty(v, val.trim());
+      });
+      container.style.fontFamily = cs.fontFamily;
     }
 
-    // create react root
-    const root = ReactDOM.createRoot(container);
+    // create or reuse a react root for this container. Reusing prevents calling createRoot() multiple times
+    let root = measurementRoots.get(container);
+    if (!root) {
+      root = ReactDOM.createRoot(container);
+      measurementRoots.set(container, root);
+    }
 
     const MeasurementApp = () => (
       <div style={{ width: "100%" }}>
         {visibleSections.map((section) => (
-          <div key={section.id} data-section-id={section.id} className="measure-entry">
-            <SectionPreview section={section} spacingConfig={spacingConfig} />
+          <div
+            key={section.id}
+            data-section-id={section.id}
+            className="measure-entry"
+          >
+            <SectionPreview
+              section={section}
+              spacingConfig={resume.spacingConfig}
+            />
           </div>
         ))}
       </div>
     );
 
+    // render measurement UI
     root.render(<MeasurementApp />);
 
     // measure heights after mount
     const id = setTimeout(() => {
       const heights = {};
       visibleSections.forEach((section) => {
-        const node = container.querySelector(`[data-section-id="${section.id}"]`);
+        const node = container.querySelector(
+          `[data-section-id="${section.id}"]`
+        );
         heights[section.id] = node ? node.offsetHeight : 0;
       });
 
-      setSectionHeights(heights);
-
-      // compute available height in preview area for sections (exclude header/profile areas)
-      const preview = pdfPreviewRef.current;
+      // compute available height in preview area for sections (exclude header/profile areas and padding)
       let availableHeight = 0;
       if (preview) {
-        // measure height available to the sections block
-        const header = preview.querySelector(".resume-header") || preview.querySelector(".pb-6") || null;
+        const paddingTB = (resume.spacingConfig.marginTB || 0) * PX_PER_MM;
+
+        // measure header/profile heights if present
+        const header =
+          preview.querySelector(".resume-header") ||
+          preview.querySelector(".pb-6") ||
+          null;
         const profile = preview.querySelector(".mb-6") || null;
-        availableHeight = preview.clientHeight - (header ? header.offsetHeight : 0) - (profile ? profile.offsetHeight : 0) - 40;
+
+        const headerHeight = header ? header.offsetHeight : 0;
+        const profileHeight = profile ? profile.offsetHeight : 0;
+
+        // available height should be the preview inner height minus header/profile
+        const previewInnerHeight = preview.clientHeight - paddingTB * 2;
+        availableHeight = Math.max(
+          0,
+          previewInnerHeight - headerHeight - profileHeight
+        );
       }
 
       // distribute sections into left/right columns trying to fill left first
@@ -299,7 +509,16 @@ const Resume = () => {
       for (let i = 0; i < visibleSections.length; i++) {
         const section = visibleSections[i];
         const h = heights[section.id] || 100;
-        if (leftUsed + h <= columnHeight || left.length === 0) {
+
+        // If this is the first section, always place in left even if it overflows
+        if (left.length === 0) {
+          left.push(section);
+          leftUsed += h;
+          continue;
+        }
+
+        // Only move to right if the section would cross the bottom padding (i.e. not fit)
+        if (leftUsed + h <= columnHeight) {
           left.push(section);
           leftUsed += h;
         } else {
@@ -309,107 +528,34 @@ const Resume = () => {
 
       setDistributed({ left, right, first: null });
 
-      // unmount measurement root after measurement to keep DOM clean
-      setTimeout(() => root.unmount(), 20);
+      // unmount measurement UI after measurement to keep DOM clean. Render null rather than unmounting the root
+      setTimeout(() => {
+        try {
+          root.render(null);
+        } catch (e) {
+          // swallowing errors during cleanup is OK — measurement is optional
+        }
+      }, 20);
     }, 50);
 
     return () => clearTimeout(id);
-  }, [sections, sectionOrder, layoutConfig, spacingConfig, selectedFont]);
-
-  const contactLine = useMemo(() => {
-    return [formData.email, formData.phone, formData.location]
-      .filter(Boolean)
-      .join(" | ");
-  }, [formData.email, formData.phone, formData.location]);
-
-  const secondaryLine = useMemo(() => {
-    return [formData.linkedin, formData.github].filter(Boolean).join(" | ");
-  }, [formData.github, formData.linkedin]);
-
-  const ContactIcon = ({ type }) => {
-    if (type === "email") return <FaEnvelope className="text-slate-500" />;
-    if (type === "phone") return <FaPhone className="text-slate-500" />;
-    if (type === "location")
-      return <FaMapMarkerAlt className="text-slate-500" />;
-    if (type === "linkedin") return <FaLinkedin className="text-slate-500" />;
-    if (type === "github") return <FaGithub className="text-slate-500" />;
-    return <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />;
-  };
-
-  const renderContactInfo = () => {
-    const parts = [
-      { v: formData.email, t: "email" },
-      { v: formData.phone, t: "phone" },
-      { v: formData.location, t: "location" },
-    ].filter((p) => p.v);
-    const secondary = [
-      { v: formData.linkedin, t: "linkedin", url: formData.linkedinUrl },
-      { v: formData.github, t: "github", url: formData.githubUrl },
-    ].filter((p) => p.v);
-    // helper to render a contact element (icon + text or anchor)
-    const renderElem = (item, idx) => {
-      const content = item.url ? (
-        <a href={item.url} className="hover:underline">
-          {item.v}
-        </a>
-      ) : (
-        item.v
-      );
-      return (
-        <span key={item.v + idx} className="inline-flex items-center gap-2">
-          <ContactIcon type={item.t} />
-          {content}
-        </span>
-      );
-    };
-
-    // row-wise spread across single row (two arrangement keeps left/right but both use same inline style)
-    if (personalConfig.arrangement === "two") {
-      return (
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
-          <div className="flex items-center gap-4">
-            {parts.map((p, i) => (
-              <React.Fragment key={p.v + i}>
-                {renderElem(p, i)}
-                {i < parts.length - 1 && (
-                  <span className="text-slate-600">&nbsp;|&nbsp;</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 text-slate-600">
-            {secondary.map((s, i) => (
-              <React.Fragment key={s.v + i}>
-                {renderElem(s, i)}
-                {i < secondary.length - 1 && (
-                  <span className="text-slate-600">&nbsp;|&nbsp;</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // For single arrangement and other contact styles, render all items inline with icons and separators
-    const all = [...parts, ...secondary];
-    return (
-      <div className="mt-3 text-xs text-slate-600">
-        {all.map((item, idx) => (
-          <React.Fragment key={item.v + idx}>
-            {renderElem(item, idx)}
-            {idx < all.length - 1 && (
-              <span className="text-slate-600">&nbsp;|&nbsp;</span>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  };
+  }, [
+    resume.sections,
+    resume.sectionOrder,
+    resume.layoutConfig,
+    resume.spacingConfig,
+    resume.selectedFont,
+  ]);
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setResume((prev) => ({
+      ...prev,
+      formData: { ...prev.formData, [name]: value },
+    }));
+    try {
+      lastEditsRef.current.set(`formData.${name}`, Date.now());
+    } catch {}
   };
 
   const handlePhotoUpload = (event) => {
@@ -417,7 +563,13 @@ const Resume = () => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      setFormData((prev) => ({ ...prev, photoUrl: e.target.result }));
+      setResume((prev) => ({
+        ...prev,
+        formData: { ...prev.formData, photoUrl: e.target.result },
+      }));
+      try {
+        lastEditsRef.current.set(`formData.photoUrl`, Date.now());
+      } catch {}
     };
     reader.readAsDataURL(file);
   };
@@ -427,71 +579,480 @@ const Resume = () => {
   };
 
   const removePhoto = () => {
-    setFormData((prev) => ({ ...prev, photoUrl: null }));
+    setResume((prev) => ({
+      ...prev,
+      formData: { ...prev.formData, photoUrl: null },
+    }));
     if (photoInputRef.current) photoInputRef.current.value = null;
   };
 
   const handleSectionReorder = (fromIndex, toIndex) => {
-    const newOrder = [...sectionOrder];
-    const [moved] = newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, moved);
-    setSectionOrder(newOrder);
+    setResume((prev) => {
+      const newOrder = [...prev.sectionOrder];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, moved);
+      return { ...prev, sectionOrder: newOrder };
+    });
   };
+
+  // Save resume to Firestore (content and layout in separate collections)
+  // options: force - bypass conflict check; skipConflictCheck - used by autosave to avoid prompting user
+  const saveToFirestore = async ({
+    force = false,
+    skipConflictCheck = false,
+  } = {}) => {
+    // compute signature for current local state
+    const localSig = computeSignature(resume);
+    // allow conflict-resolution merge to write into this variable when needed
+    let resumeToSave = resume;
+
+    // conflict detection: only run if we have a linked doc, not forcing, and caller hasn't asked to skip checks (autosave)
+    if (firestoreDocId && !force && !skipConflictCheck) {
+      try {
+        const remote = await firestore.getResumeContent(firestoreDocId);
+        if (remote) {
+          // Prefer server-side timestamp for change detection if available
+          const remoteTs = remote.updatedAt || remote.createdAt || null;
+          let remoteIso = null;
+          try {
+            if (remoteTs && typeof remoteTs.toDate === "function")
+              remoteIso = remoteTs.toDate().toISOString();
+            else if (remoteTs) remoteIso = new Date(remoteTs).toISOString();
+          } catch (e) {
+            remoteIso = null;
+          }
+
+          // If we have a lastSavedAt timestamp and remote is newer, check for content differences before prompting
+          if (lastSavedAt && remoteIso) {
+            try {
+              if (new Date(remoteIso) > new Date(lastSavedAt)) {
+                // remote changed since our last save — compare content-only payloads to avoid false positives
+                const remoteSig = JSON.stringify({
+                  formData: remote.formData || {},
+                  sections: remote.sections || [],
+                });
+                const localSigContent = JSON.stringify({
+                  formData: resume.formData || {},
+                  sections: resume.sections || [],
+                });
+                if (remoteSig !== localSigContent) {
+                  // Attempt a three-way, timestamp-based merge using per-field last edit times.
+                  // If merge is not possible or remote timestamp is missing, fall back to prompting the user.
+                  let remoteUpdatedMs = 0;
+                  try {
+                    if (
+                      remote.updatedAt &&
+                      typeof remote.updatedAt.toDate === "function"
+                    )
+                      remoteUpdatedMs = remote.updatedAt.toDate().getTime();
+                    else if (remote.updatedAt)
+                      remoteUpdatedMs = new Date(remote.updatedAt).getTime();
+                  } catch (e) {
+                    remoteUpdatedMs = 0;
+                  }
+
+                  // If we couldn't parse a remote timestamp, ask the user to confirm (safer fallback)
+                  if (!remoteUpdatedMs) {
+                    pendingSaveRef.current = { force: false };
+                    setConflictDialogOpen(true);
+                    showSnackbar(
+                      "warning",
+                      "Remote changes detected. Confirm to overwrite."
+                    );
+                    return;
+                  }
+
+                  // helper to get last edit timestamp for a path
+                  const getLastEditTs = (path) => {
+                    try {
+                      const v = lastEditsRef.current.get(path);
+                      return typeof v === "number" ? v : 0;
+                    } catch (e) {
+                      return 0;
+                    }
+                  };
+
+                  // start merge from remote as base
+                  const merged = JSON.parse(JSON.stringify(remote));
+
+                  // merge formData fields by per-field last edit timestamp
+                  merged.formData = merged.formData || {};
+                  const localForm = resume.formData || {};
+                  Object.keys({ ...merged.formData, ...localForm }).forEach(
+                    (k) => {
+                      const path = `formData.${k}`;
+                      const localTs = getLastEditTs(path);
+                      if (localTs && localTs > remoteUpdatedMs)
+                        merged.formData[k] = localForm[k];
+                      else
+                        merged.formData[k] = merged.formData[k] ?? localForm[k];
+                    }
+                  );
+
+                  // merge sections by id
+                  merged.sections = merged.sections || [];
+                  const localSections = resume.sections || [];
+                  const sectionIds = new Set([
+                    ...merged.sections.map((s) => s.id),
+                    ...localSections.map((s) => s.id),
+                  ]);
+
+                  const mergedSections = [];
+                  sectionIds.forEach((sid) => {
+                    const rsec =
+                      (merged.sections || []).find((s) => s.id === sid) || null;
+                    const lsec =
+                      (localSections || []).find((s) => s.id === sid) || null;
+                    if (!rsec && lsec) {
+                      // only local -> include
+                      mergedSections.push(JSON.parse(JSON.stringify(lsec)));
+                      return;
+                    }
+                    if (rsec && !lsec) {
+                      // only remote -> include
+                      mergedSections.push(JSON.parse(JSON.stringify(rsec)));
+                      return;
+                    }
+
+                    // both exist -> merge fields and items
+                    const out = JSON.parse(JSON.stringify(rsec || {}));
+                    out.name =
+                      getLastEditTs(`sections.${sid}.name`) > remoteUpdatedMs
+                        ? lsec.name
+                        : out.name;
+                    out.visible =
+                      getLastEditTs(`sections.${sid}.visible`) > remoteUpdatedMs
+                        ? lsec.visible ?? out.visible
+                        : out.visible;
+
+                    // items union
+                    const rItems = (rsec.items || []).slice();
+                    const lItems = (lsec.items || []).slice();
+                    const itemIds = new Set([
+                      ...rItems.map((i) => i.id),
+                      ...lItems.map((i) => i.id),
+                    ]);
+                    out.items = [];
+                    itemIds.forEach((iid) => {
+                      const rit = rItems.find((it) => it.id === iid) || null;
+                      const lit = lItems.find((it) => it.id === iid) || null;
+                      if (!rit && lit) {
+                        out.items.push(JSON.parse(JSON.stringify(lit)));
+                        return;
+                      }
+                      if (rit && !lit) {
+                        out.items.push(JSON.parse(JSON.stringify(rit)));
+                        return;
+                      }
+
+                      // both items present -> merge data keys
+                      const oitem = JSON.parse(JSON.stringify(rit || {}));
+                      oitem.data = oitem.data || {};
+                      const ldata = (lit && lit.data) || {};
+                      const dataKeys = new Set([
+                        ...Object.keys(oitem.data || {}),
+                        ...Object.keys(ldata || {}),
+                      ]);
+                      dataKeys.forEach((dk) => {
+                        const path = `sections.${sid}.items.${iid}.data.${dk}`;
+                        const localTs = getLastEditTs(path);
+                        if (localTs && localTs > remoteUpdatedMs)
+                          oitem.data[dk] = ldata[dk];
+                        else oitem.data[dk] = oitem.data[dk] ?? ldata[dk];
+                      });
+                      // collapsed preference
+                      const collapsedPath = `sections.${sid}.items.${iid}.collapsed`;
+                      oitem.collapsed =
+                        getLastEditTs(collapsedPath) > remoteUpdatedMs
+                          ? lit.collapsed ?? oitem.collapsed
+                          : oitem.collapsed;
+
+                      out.items.push(oitem);
+                    });
+
+                    mergedSections.push(out);
+                  });
+
+                  // assign merged sections
+                  merged.sections = mergedSections;
+
+                  // At this point we have a merged object. Update local UI with merged result before saving
+                  setResume((prev) => ({ ...prev, ...merged }));
+                  // use merged object for the actual save that follows in this function
+                  resumeToSave = merged;
+
+                  // continue to save but mark as forced since we've already reconciled
+                  // (will proceed below to persist merged content)
+                }
+              }
+            } catch (e) {
+              // if anything fails during comparison or merge, fallback to prompting the user
+              try {
+                pendingSaveRef.current = { force: false };
+                setConflictDialogOpen(true);
+                showSnackbar(
+                  "warning",
+                  "Remote changes detected. Confirm to overwrite."
+                );
+                return;
+              } catch (_) {
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // If remote check fails, we'll proceed with save and let server handle errors
+        console.warn("Remote signature check failed, proceeding to save", e);
+      }
+    }
+
+    try {
+      setIsSaving(true);
+      showSnackbar("info", "Saving...", 0);
+
+      // prepare content (personal fields + sections)
+      // sanitize objects for Firestore (remove functions, DOM nodes, undefined)
+      const sanitizeForFirestore = (v) => {
+        if (v == null) return v;
+        if (typeof v === "function") return undefined;
+        if (v instanceof Date) return v.toISOString();
+        if (Array.isArray(v))
+          return v
+            .map((x) => sanitizeForFirestore(x))
+            .filter((x) => x !== undefined);
+        if (typeof v === "object") {
+          const out = {};
+          Object.keys(v).forEach((k) => {
+            try {
+              const val = v[k];
+              if (typeof val === "function" || typeof val === "undefined") {
+                // skip
+                return;
+              }
+              const s = sanitizeForFirestore(val);
+              if (typeof s !== "undefined") out[k] = s;
+            } catch (e) {
+              // skip problematic keys
+            }
+          });
+          return out;
+        }
+        return v;
+      };
+
+      const content = {
+        formData: sanitizeForFirestore(resumeToSave.formData),
+        sections: (resumeToSave.sections || []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          visible: s.visible,
+          // items: sanitize deeply but avoid saving component/icon references
+          items: (s.items || []).map((it) => ({
+            id: it.id,
+            collapsed: !!it.collapsed,
+            data: sanitizeForFirestore(it.data || {}),
+          })),
+        })),
+      };
+
+      // prepare layout
+      const layout = sanitizeForFirestore({
+        layoutConfig: resumeToSave.layoutConfig,
+        spacingConfig: resumeToSave.spacingConfig,
+        personalConfig: resumeToSave.personalConfig,
+        selectedFont: resumeToSave.selectedFont,
+        sectionOrder: resumeToSave.sectionOrder,
+      });
+
+      // If we already have a linked doc id, reuse it for both collections for easy lookup
+      let docId = firestoreDocId;
+      if (!docId) {
+        // create content doc first and use its id
+        docId = await firestore.saveResumeContent(null, content);
+        setFirestoreDocId(docId);
+        // save layout under same id
+        await firestore.saveResumeLayout(docId, layout);
+      } else {
+        await firestore.saveResumeContent(docId, content);
+        await firestore.saveResumeLayout(docId, layout);
+      }
+
+      // persist doc id so subsequent sessions reuse the same document
+      try {
+        if (docId) localStorage.setItem("resume_firestore_docId", docId);
+      } catch (e) {
+        // ignore localStorage errors
+      }
+
+      // update last saved signature — prefer server timestamp if available
+      try {
+        const savedRemote = await firestore.getResumeContent(docId);
+        const sig = JSON.stringify({
+          formData: savedRemote?.formData || {},
+          sections: savedRemote?.sections || [],
+        });
+        lastSavedSignatureRef.current = sig;
+        // prefer server's updatedAt when present
+        let serverIso = null;
+        try {
+          const ts = savedRemote?.updatedAt || savedRemote?.createdAt || null;
+          if (ts && typeof ts.toDate === "function")
+            serverIso = ts.toDate().toISOString();
+          else if (ts) serverIso = new Date(ts).toISOString();
+        } catch (e) {
+          serverIso = null;
+        }
+        setLastSavedAt(serverIso || new Date().toISOString());
+      } catch (e) {
+        lastSavedSignatureRef.current = localSig;
+        setLastSavedAt(new Date().toISOString());
+      }
+
+      showSnackbar("success", "Saved", 2500);
+
+      console.log("Saved resume to Firestore, docId=", docId);
+    } catch (err) {
+      console.error("Failed to save resume to Firestore:", err);
+      showSnackbar("error", "Save failed", 3500);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load resume content & layout from Firestore by doc id
+  const loadFromFirestore = async (docId) => {
+    if (!docId) {
+      showSnackbar("error", "No doc id", 3000);
+      return;
+    }
+    setIsSaving(true);
+    showSnackbar("info", "Loading...", 0);
+    try {
+      const content = await firestore.getResumeContent(docId);
+      const layout = await firestore.getResumeLayout(docId);
+
+      if (!content && !layout) {
+        showSnackbar("error", "Document not found", 2500);
+        return;
+      }
+
+      // hydrate sections with icons from availableSections (we don't store component functions in Firestore)
+      const hydratedSections = (content?.sections || []).map((s) => ({
+        ...s,
+        icon: availableSections.find((a) => a.id === s.id)?.icon,
+      }));
+
+      setResume((prev) => ({
+        ...prev,
+        ...(content || {}),
+        sections: hydratedSections.length
+          ? hydratedSections
+          : content?.sections || prev.sections,
+        ...(layout || {}),
+      }));
+
+      setFirestoreDocId(docId);
+      try {
+        localStorage.setItem("resume_firestore_docId", docId);
+      } catch (e) {}
+      // update last saved signature from the loaded content
+      try {
+        const sig = JSON.stringify({
+          formData: content?.formData || {},
+          sections: content?.sections || [],
+        });
+        lastSavedSignatureRef.current = sig;
+        setLastSavedAt(new Date().toISOString());
+      } catch (e) {}
+
+      showSnackbar("success", "Loaded", 2000);
+    } catch (err) {
+      console.error("Failed to load from Firestore:", err);
+      showSnackbar("error", "Load failed", 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // If the route contains a docId param, auto-load it
+  useEffect(() => {
+    if (params?.docId) {
+      // prefill the input and attempt load
+      setLoadDocId(params.docId);
+      if (params.docId !== firestoreDocId) {
+        loadFromFirestore(params.docId);
+      }
+    }
+  }, [params?.docId]);
 
   const addSection = (sectionId) => {
     const sectionTemplate = availableSections.find((s) => s.id === sectionId);
     if (!sectionTemplate) return;
+    setResume((prev) => {
+      const exists = prev.sections.find((s) => s.id === sectionId);
+      const newSections = exists
+        ? prev.sections.map((s) =>
+            s.id === sectionId ? { ...s, visible: true } : s
+          )
+        : [
+            ...prev.sections,
+            {
+              id: sectionId,
+              name: sectionTemplate.name,
+              icon: sectionTemplate.icon,
+              visible: true,
+              items: [],
+            },
+          ];
 
-    const exists = sections.find((s) => s.id === sectionId);
-    if (exists) {
-      setSections((prev) =>
-        prev.map((s) => (s.id === sectionId ? { ...s, visible: true } : s))
-      );
-    } else {
-      setSections((prev) => [
-        ...prev,
-        {
-          id: sectionId,
-          name: sectionTemplate.name,
-          icon: sectionTemplate.icon,
-          visible: true,
-          items: [],
-        },
-      ]);
-    }
-    // Ensure the new section is added to sectionOrder at the end (preserve chronological order)
-    setSectionOrder((prevOrder) =>
-      prevOrder.includes(sectionId) ? prevOrder : [...prevOrder, sectionId]
-    );
+      const newOrder = prev.sectionOrder.includes(sectionId)
+        ? prev.sectionOrder
+        : [...prev.sectionOrder, sectionId];
+
+      return { ...prev, sections: newSections, sectionOrder: newOrder };
+    });
     setShowAddSection(false);
   };
 
   const removeSection = (sectionId) => {
-    setSections((prev) =>
-      prev.map((s) => (s.id === sectionId ? { ...s, visible: false } : s))
-    );
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId ? { ...s, visible: false } : s
+      ),
+    }));
   };
 
   const addItemToSection = (sectionId) => {
-    setSections((prev) =>
-      prev.map((section) => {
+    const newItemId = Date.now();
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
         if (section.id === sectionId) {
           return {
             ...section,
             items: [
               ...section.items,
-              { id: Date.now(), data: {}, collapsed: false },
+              { id: newItemId, data: {}, collapsed: false },
             ],
           };
         }
         return section;
-      })
-    );
+      }),
+    }));
+    try {
+      lastEditsRef.current.set(
+        `sections.${sectionId}.items.${newItemId}`,
+        Date.now()
+      );
+    } catch {}
   };
 
   const removeItemFromSection = (sectionId, itemId) => {
-    setSections((prev) =>
-      prev.map((section) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
         if (section.id === sectionId) {
           return {
             ...section,
@@ -499,13 +1060,14 @@ const Resume = () => {
           };
         }
         return section;
-      })
-    );
+      }),
+    }));
   };
 
   const updateSectionItem = (sectionId, itemId, field, value) => {
-    setSections((prev) =>
-      prev.map((section) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
         if (section.id === sectionId) {
           return {
             ...section,
@@ -517,117 +1079,33 @@ const Resume = () => {
           };
         }
         return section;
-      })
-    );
+      }),
+    }));
+    try {
+      lastEditsRef.current.set(
+        `sections.${sectionId}.items.${itemId}.data.${field}`,
+        Date.now()
+      );
+    } catch {}
   };
 
   const toggleItemCollapsed = (sectionId, itemId) => {
-    setSections((prev) =>
-      prev.map((section) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
         if (section.id === sectionId) {
           return {
             ...section,
             items: section.items.map((item) =>
-              item.id === itemId ? { ...item, collapsed: !item.collapsed } : item
+              item.id === itemId
+                ? { ...item, collapsed: !item.collapsed }
+                : item
             ),
           };
         }
         return section;
-      })
-    );
-  };
-
- 
-  const downloadATSOptimizedPDF = () => {
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 40;
-    let y = margin;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(formData.fullName, pageWidth / 2, y, { align: "center" });
-    y += 20;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(formData.title, pageWidth / 2, y, { align: "center" });
-    y += 18;
-
-    doc.setFontSize(10);
-    const contactInfo = [contactLine, secondaryLine]
-      .filter(Boolean)
-      .join(" | ");
-    doc.text(contactInfo, pageWidth / 2, y, {
-      align: "center",
-      maxWidth: pageWidth - margin * 2,
-    });
-    y += 28;
-
-    if (formData.profile) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("PROFILE", margin, y);
-      y += 18;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      const profileLines = doc.splitTextToSize(
-        formData.profile,
-        pageWidth - margin * 2
-      );
-      profileLines.forEach((line) => {
-        doc.text(line, margin, y);
-        y += 14;
-      });
-      y += 10;
-    }
-
-    sections
-      .filter((s) => s.visible && s.items.length > 0)
-      .forEach((section) => {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text(section.name.toUpperCase(), margin, y);
-        y += 18;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-
-        section.items.forEach((item) => {
-          const data = item.data;
-          if (data.title) {
-            doc.setFont("helvetica", "bold");
-            doc.text(data.title, margin, y);
-            doc.setFont("helvetica", "normal");
-            y += 14;
-          }
-          if (data.subtitle) {
-            doc.text(data.subtitle, margin, y);
-            y += 14;
-          }
-          if (data.date || data.location) {
-            doc.text(
-              [data.date, data.location].filter(Boolean).join(" | "),
-              margin,
-              y
-            );
-            y += 14;
-          }
-          if (data.description) {
-            const descLines = doc.splitTextToSize(
-              data.description,
-              pageWidth - margin * 2
-            );
-            descLines.forEach((line) => {
-              doc.text(line, margin, y);
-              y += 14;
-            });
-          }
-          y += 8;
-        });
-        y += 10;
-      });
-
-    doc.save(`${sanitizedFilename}_ats.pdf`);
+      }),
+    }));
   };
 
   const personalFields = [
@@ -642,12 +1120,11 @@ const Resume = () => {
 
   // ...existing code...
 
+  // const { printFn, componentRef } = useResumePrint();
+
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex flex-col">
-      <ResumeNav
-        toPDF={toPDF}
-        downloadATSOptimizedPDF={downloadATSOptimizedPDF}
-      />
+      <ResumeNav />
 
       <main className="flex-1 w-full pt-20">
         <div className="mx-auto flex w-full gap-2 px-6 md:flex-row items-start h-[calc(100vh-80px)] justify-center pt-4">
@@ -701,13 +1178,16 @@ const Resume = () => {
                             <button
                               key={option.value}
                               onClick={() =>
-                                setLayoutConfig((prev) => ({
+                                setResume((prev) => ({
                                   ...prev,
-                                  columns: option.value,
+                                  layoutConfig: {
+                                    ...prev.layoutConfig,
+                                    columns: option.value,
+                                  },
                                 }))
                               }
                               className={`flex items-center justify-center w-20 h-20 rounded-lg border-2 transition ${
-                                layoutConfig.columns === option.value
+                                resume.layoutConfig.columns === option.value
                                   ? "border-indigo-600 bg-indigo-50"
                                   : "border-slate-200 hover:border-slate-300"
                               }`}
@@ -733,13 +1213,17 @@ const Resume = () => {
                             <button
                               key={option.value}
                               onClick={() =>
-                                setLayoutConfig((prev) => ({
+                                setResume((prev) => ({
                                   ...prev,
-                                  headerPosition: option.value,
+                                  layoutConfig: {
+                                    ...prev.layoutConfig,
+                                    headerPosition: option.value,
+                                  },
                                 }))
                               }
                               className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition ${
-                                layoutConfig.headerPosition === option.value
+                                resume.layoutConfig.headerPosition ===
+                                option.value
                                   ? "border-indigo-600 bg-indigo-50 text-indigo-600"
                                   : "border-slate-200 text-slate-700 hover:border-slate-300"
                               }`}
@@ -761,20 +1245,23 @@ const Resume = () => {
                                 Left
                               </span>
                               <span className="text-xs font-medium text-slate-700">
-                                {layoutConfig.leftColumnWidth}%
+                                {resume.layoutConfig.leftColumnWidth}%
                               </span>
                             </div>
                             <input
                               type="range"
                               min="30"
                               max="70"
-                              value={layoutConfig.leftColumnWidth}
+                              value={resume.layoutConfig.leftColumnWidth}
                               onChange={(e) =>
-                                setLayoutConfig((prev) => ({
+                                setResume((prev) => ({
                                   ...prev,
-                                  leftColumnWidth: parseInt(e.target.value),
-                                  rightColumnWidth:
-                                    100 - parseInt(e.target.value),
+                                  layoutConfig: {
+                                    ...prev.layoutConfig,
+                                    leftColumnWidth: parseInt(e.target.value),
+                                    rightColumnWidth:
+                                      100 - parseInt(e.target.value),
+                                  },
                                 }))
                               }
                               className="w-full"
@@ -786,20 +1273,23 @@ const Resume = () => {
                                 Right
                               </span>
                               <span className="text-xs font-medium text-slate-700">
-                                {layoutConfig.rightColumnWidth}%
+                                {resume.layoutConfig.rightColumnWidth}%
                               </span>
                             </div>
                             <input
                               type="range"
                               min="30"
                               max="70"
-                              value={layoutConfig.rightColumnWidth}
+                              value={resume.layoutConfig.rightColumnWidth}
                               onChange={(e) =>
-                                setLayoutConfig((prev) => ({
+                                setResume((prev) => ({
                                   ...prev,
-                                  rightColumnWidth: parseInt(e.target.value),
-                                  leftColumnWidth:
-                                    100 - parseInt(e.target.value),
+                                  layoutConfig: {
+                                    ...prev.layoutConfig,
+                                    rightColumnWidth: parseInt(e.target.value),
+                                    leftColumnWidth:
+                                      100 - parseInt(e.target.value),
+                                  },
                                 }))
                               }
                               className="w-full"
@@ -835,15 +1325,18 @@ const Resume = () => {
                           <button
                             key={f.family}
                             onClick={() => {
-                              setSelectedFont({
-                                family: f.family,
-                                category: activeFontCategory,
-                                css: f.css,
-                              });
+                              setResume((prev) => ({
+                                ...prev,
+                                selectedFont: {
+                                  family: f.family,
+                                  category: activeFontCategory,
+                                  css: f.css,
+                                },
+                              }));
                               loadGoogleFont(f.css);
                             }}
                             className={`w-full text-left px-4 py-2 rounded-lg border transition text-sm ${
-                              selectedFont.family === f.family
+                              resume.selectedFont.family === f.family
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -873,13 +1366,16 @@ const Resume = () => {
                             <button
                               key={opt.key}
                               onClick={() =>
-                                setPersonalConfig((prev) => ({
+                                setResume((prev) => ({
                                   ...prev,
-                                  align: opt.key,
+                                  personalConfig: {
+                                    ...prev.personalConfig,
+                                    align: opt.key,
+                                  },
                                 }))
                               }
                               className={`px-4 py-3 rounded-lg border w-32 text-sm ${
-                                personalConfig.align === opt.key
+                                resume.personalConfig.align === opt.key
                                   ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                   : "border-slate-200 text-slate-700"
                               }`}
@@ -897,13 +1393,16 @@ const Resume = () => {
                         <div className="flex gap-3">
                           <button
                             onClick={() =>
-                              setPersonalConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                arrangement: "single",
+                                personalConfig: {
+                                  ...prev.personalConfig,
+                                  arrangement: "single",
+                                },
                               }))
                             }
                             className={`px-4 py-3 rounded-lg border w-40 text-sm ${
-                              personalConfig.arrangement === "single"
+                              resume.personalConfig.arrangement === "single"
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -912,13 +1411,16 @@ const Resume = () => {
                           </button>
                           <button
                             onClick={() =>
-                              setPersonalConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                arrangement: "two",
+                                personalConfig: {
+                                  ...prev.personalConfig,
+                                  arrangement: "two",
+                                },
                               }))
                             }
                             className={`px-4 py-3 rounded-lg border w-40 text-sm ${
-                              personalConfig.arrangement === "two"
+                              resume.personalConfig.arrangement === "two"
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -935,13 +1437,16 @@ const Resume = () => {
                         <div className="flex gap-3">
                           <button
                             onClick={() =>
-                              setPersonalConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                contactStyle: "icon",
+                                personalConfig: {
+                                  ...prev.personalConfig,
+                                  contactStyle: "icon",
+                                },
                               }))
                             }
                             className={`px-4 py-3 rounded-lg border w-32 text-sm ${
-                              personalConfig.contactStyle === "icon"
+                              resume.personalConfig.contactStyle === "icon"
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -950,13 +1455,16 @@ const Resume = () => {
                           </button>
                           <button
                             onClick={() =>
-                              setPersonalConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                contactStyle: "bullet",
+                                personalConfig: {
+                                  ...prev.personalConfig,
+                                  contactStyle: "bullet",
+                                },
                               }))
                             }
                             className={`px-4 py-3 rounded-lg border w-32 text-sm ${
-                              personalConfig.contactStyle === "bullet"
+                              resume.personalConfig.contactStyle === "bullet"
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -965,13 +1473,16 @@ const Resume = () => {
                           </button>
                           <button
                             onClick={() =>
-                              setPersonalConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                contactStyle: "bar",
+                                personalConfig: {
+                                  ...prev.personalConfig,
+                                  contactStyle: "bar",
+                                },
                               }))
                             }
                             className={`px-4 py-3 rounded-lg border w-32 text-sm ${
-                              personalConfig.contactStyle === "bar"
+                              resume.personalConfig.contactStyle === "bar"
                                 ? "bg-indigo-50 border-indigo-400 text-indigo-700"
                                 : "border-slate-200 text-slate-700"
                             }`}
@@ -994,18 +1505,21 @@ const Resume = () => {
                             Font Size
                           </label>
                           <span className="text-sm text-slate-600">
-                            {spacingConfig.fontSize}pt
+                            {resume.spacingConfig.fontSize}pt
                           </span>
                         </div>
                         <input
                           type="range"
                           min="8"
                           max="14"
-                          value={spacingConfig.fontSize}
+                          value={resume.spacingConfig.fontSize}
                           onChange={(e) =>
-                            setSpacingConfig((prev) => ({
+                            setResume((prev) => ({
                               ...prev,
-                              fontSize: parseInt(e.target.value),
+                              spacingConfig: {
+                                ...prev.spacingConfig,
+                                fontSize: parseInt(e.target.value),
+                              },
                             }))
                           }
                           className="w-full"
@@ -1018,7 +1532,7 @@ const Resume = () => {
                             Line Height
                           </label>
                           <span className="text-sm text-slate-600">
-                            {spacingConfig.lineHeight}
+                            {resume.spacingConfig.lineHeight}
                           </span>
                         </div>
                         <input
@@ -1026,11 +1540,14 @@ const Resume = () => {
                           min="1"
                           max="2"
                           step="0.05"
-                          value={spacingConfig.lineHeight}
+                          value={resume.spacingConfig.lineHeight}
                           onChange={(e) =>
-                            setSpacingConfig((prev) => ({
+                            setResume((prev) => ({
                               ...prev,
-                              lineHeight: parseFloat(e.target.value),
+                              spacingConfig: {
+                                ...prev.spacingConfig,
+                                lineHeight: parseFloat(e.target.value),
+                              },
                             }))
                           }
                           className="w-full"
@@ -1044,18 +1561,21 @@ const Resume = () => {
                               Left & Right Margin
                             </label>
                             <span className="text-sm text-slate-600">
-                              {spacingConfig.marginLR}mm
+                              {resume.spacingConfig.marginLR}mm
                             </span>
                           </div>
                           <input
                             type="range"
                             min="0"
                             max="25"
-                            value={spacingConfig.marginLR}
+                            value={resume.spacingConfig.marginLR}
                             onChange={(e) =>
-                              setSpacingConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                marginLR: parseInt(e.target.value),
+                                spacingConfig: {
+                                  ...prev.spacingConfig,
+                                  marginLR: parseInt(e.target.value),
+                                },
                               }))
                             }
                             className="w-full"
@@ -1067,18 +1587,21 @@ const Resume = () => {
                               Top & Bottom Margin
                             </label>
                             <span className="text-sm text-slate-600">
-                              {spacingConfig.marginTB}mm
+                              {resume.spacingConfig.marginTB}mm
                             </span>
                           </div>
                           <input
                             type="range"
                             min="0"
                             max="25"
-                            value={spacingConfig.marginTB}
+                            value={resume.spacingConfig.marginTB}
                             onChange={(e) =>
-                              setSpacingConfig((prev) => ({
+                              setResume((prev) => ({
                                 ...prev,
-                                marginTB: parseInt(e.target.value),
+                                spacingConfig: {
+                                  ...prev.spacingConfig,
+                                  marginTB: parseInt(e.target.value),
+                                },
                               }))
                             }
                             className="w-full"
@@ -1092,18 +1615,21 @@ const Resume = () => {
                             Space between Entries
                           </label>
                           <span className="text-sm text-slate-600">
-                            {spacingConfig.entrySpacing}px
+                            {resume.spacingConfig.entrySpacing}px
                           </span>
                         </div>
                         <input
                           type="range"
                           min="0"
                           max="30"
-                          value={spacingConfig.entrySpacing}
+                          value={resume.spacingConfig.entrySpacing}
                           onChange={(e) =>
-                            setSpacingConfig((prev) => ({
+                            setResume((prev) => ({
                               ...prev,
-                              entrySpacing: parseInt(e.target.value),
+                              spacingConfig: {
+                                ...prev.spacingConfig,
+                                entrySpacing: parseInt(e.target.value),
+                              },
                             }))
                           }
                           className="w-full"
@@ -1116,8 +1642,8 @@ const Resume = () => {
                         Change Section Order
                       </h3>
                       <div className="space-y-2">
-                        {sectionOrder.map((sectionId, index) => {
-                          const section = sections.find(
+                        {resume.sectionOrder.map((sectionId, index) => {
+                          const section = resume.sections.find(
                             (s) => s.id === sectionId
                           );
                           const Icon = section?.icon;
@@ -1140,10 +1666,12 @@ const Resume = () => {
                                 </button>
                                 <button
                                   onClick={() =>
-                                    index < sectionOrder.length - 1 &&
+                                    index < resume.sectionOrder.length - 1 &&
                                     handleSectionReorder(index, index + 1)
                                   }
-                                  disabled={index === sectionOrder.length - 1}
+                                  disabled={
+                                    index === resume.sectionOrder.length - 1
+                                  }
                                   className="text-slate-400 hover:text-slate-600 disabled:opacity-50"
                                   title="Move down"
                                 >
@@ -1176,9 +1704,9 @@ const Resume = () => {
                       {/* Photo Upload */}
                       <div className="mb-6 flex items-center gap-4">
                         <div className="h-24 w-24 rounded-full border-2 border-slate-200 bg-slate-100 flex items-center justify-center overflow-hidden">
-                          {formData.photoUrl ? (
+                          {resume.formData.photoUrl ? (
                             <img
-                              src={formData.photoUrl}
+                              src={resume.formData.photoUrl}
                               alt="profile"
                               className="w-full h-full object-cover"
                             />
@@ -1195,7 +1723,7 @@ const Resume = () => {
                           >
                             Upload Photo
                           </button>
-                          {formData.photoUrl && (
+                          {resume.formData.photoUrl && (
                             <button
                               onClick={removePhoto}
                               className="inline-flex items-center gap-2 rounded-md bg-rose-100 px-3 py-1 text-sm font-medium text-rose-600"
@@ -1230,7 +1758,7 @@ const Resume = () => {
                                   <input
                                     type={type}
                                     name={name}
-                                    value={formData[name]}
+                                    value={resume.formData[name]}
                                     onChange={handleInputChange}
                                     className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                                   />
@@ -1271,9 +1799,12 @@ const Resume = () => {
                           Professional Profile
                         </label>
                         <RichTextEditor
-                          value={formData.profile}
+                          value={resume.formData.profile}
                           onChange={(html) =>
-                            setFormData((prev) => ({ ...prev, profile: html }))
+                            setResume((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, profile: html },
+                            }))
                           }
                           className="min-h-[100px]"
                         />
@@ -1298,11 +1829,11 @@ const Resume = () => {
                         open={showAddSection}
                         onClose={() => setShowAddSection(false)}
                         availableSections={availableSections}
-                        sections={sections}
+                        sections={resume.sections}
                         addSection={addSection}
                       />
                       {/* Active Sections */}
-                      {sections
+                      {resume.sections
                         .filter((s) => s.visible)
                         .map((section) => {
                           const Icon = section.icon;
@@ -1330,7 +1861,10 @@ const Resume = () => {
                                 section,
                                 updateSectionItem,
                                 removeItemFromSection,
-                                toggleItemCollapsed
+                                toggleItemCollapsed,
+                                openUrlDialog,
+                                sensors,
+                                handleDragEnd
                               )}
 
                               <button
@@ -1356,34 +1890,75 @@ const Resume = () => {
           <section className=" md:flex-[0_0_auto] h-full flex justify-center flex-col">
             <div className="flex-1 overflow-auto hide-scrollbar">
               <div className="flex items-start justify-center ">
-                <div className="relative">
-                  <div
-                    className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600"
-                    data-html2canvas-ignore="true"
-                  >
+                <div className="relative" id="preview-resume">
+                  <div className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
                     <span className="h-2 w-2 rounded-full bg-indigo-500" /> Live
                     preview
                   </div>
                   <div
                     ref={combinedPreviewRef}
+                    id="resume-preview"
                     className="resume-preview relative w-[794px] h-[1123px] bg-white shadow-xl ring-1 ring-indigo-100 border border-slate-200 overflow-hidden"
                     style={{
                       width: `${A4_WIDTH_PX}px`,
                       minWidth: `${A4_WIDTH_PX}px`,
                       height: `${A4_HEIGHT_PX}px`,
                       minHeight: `${A4_HEIGHT_PX}px`,
-                      padding: `${spacingConfig.marginTB * 3.78}px ${
-                        spacingConfig.marginLR * 3.78
+                      padding: `${resume.spacingConfig.marginTB * 3.78}px ${
+                        resume.spacingConfig.marginLR * 3.78
                       }px`,
                       // expose CSS variables for font-size, line-height and entry spacing
-                      ["--resume-font-size"]: `${spacingConfig.fontSize}pt`,
-                      ["--resume-line-height"]: spacingConfig.lineHeight,
-                      ["--resume-entry-spacing"]: `${spacingConfig.entrySpacing}px`,
-                      fontFamily: selectedFont.family
-                        ? `'${selectedFont.family}', serif`
+                      ["--resume-font-size"]: `${resume.spacingConfig.fontSize}pt`,
+                      ["--resume-line-height"]: resume.spacingConfig.lineHeight,
+                      ["--resume-entry-spacing"]: `${resume.spacingConfig.entrySpacing}px`,
+                      fontFamily: resume.selectedFont.family
+                        ? `'${resume.selectedFont.family}', serif`
                         : undefined,
                     }}
                   >
+                    <div className="absolute left-6 bottom-6 z-20 flex items-center gap-2">
+                      <input
+                        value={loadDocId}
+                        onChange={(e) => setLoadDocId(e.target.value)}
+                        placeholder="Firestore doc id"
+                        className="px-2 py-1 text-xs rounded border border-slate-200 w-56"
+                      />
+                      <button
+                        onClick={() => loadFromFirestore(loadDocId)}
+                        disabled={isSaving}
+                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow ${
+                          isSaving
+                            ? "bg-slate-400"
+                            : "bg-blue-600 hover:bg-blue-700"
+                        }`}
+                      >
+                        {isSaving ? (
+                          <CircularProgress size={14} color="inherit" />
+                        ) : null}
+                        Load
+                      </button>
+                      <button
+                        onClick={() => saveToFirestore()}
+                        disabled={isSaving}
+                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow ${
+                          isSaving
+                            ? "bg-slate-400"
+                            : "bg-green-600 hover:bg-green-700"
+                        }`}
+                      >
+                        {isSaving ? (
+                          <>
+                            <CircularProgress size={14} color="inherit" />{" "}
+                            Saving...
+                          </>
+                        ) : (
+                          "Save to Firestore"
+                        )}
+                      </button>
+                    </div>
+                    <div className="absolute right-6 top-16 z-30 px-3 py-1 rounded text-xs font-medium text-slate-700">
+                      Last saved: {formatLastSaved(lastSavedAt)}
+                    </div>
                     {/* Hidden measurement container used to compute section heights for column-aware distribution */}
                     <div
                       ref={measureContainerRef}
@@ -1392,7 +1967,7 @@ const Resume = () => {
                         position: "absolute",
                         left: -10000,
                         top: -10000,
-                        width: `calc(${layoutConfig.leftColumnWidth}% - 0px)`,
+                        width: `calc(${resume.layoutConfig.leftColumnWidth}% - 0px)`,
                         pointerEvents: "none",
                         visibility: "hidden",
                       }}
@@ -1422,40 +1997,49 @@ const Resume = () => {
                       {/* Header with photo and contact info using ResumeHeader */}
                       <div
                         className={`${
-                          layoutConfig.headerPosition === "left"
+                          resume.layoutConfig.headerPosition === "left"
                             ? "flex gap-6"
-                            : layoutConfig.headerPosition === "right"
+                            : resume.layoutConfig.headerPosition === "right"
                             ? "flex gap-6 flex-row-reverse"
                             : "block"
                         } ${
-                          layoutConfig.headerPosition === "top"
+                          resume.layoutConfig.headerPosition === "top"
                             ? "border-b border-slate-200 pb-6"
                             : ""
                         }`}
-                        style={{ textAlign: personalConfig.align }}
+                        style={{ textAlign: resume.personalConfig.align }}
                       >
-                        {formData.photoUrl && (
+                        {resume.formData.photoUrl && (
                           <div
                             className={`${
-                              layoutConfig.headerPosition === "top"
+                              resume.layoutConfig.headerPosition === "top"
                                 ? "h-24 w-24"
                                 : "h-20 w-20"
                             } rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0`}
                           >
                             <img
-                              src={formData.photoUrl}
+                              src={resume.formData.photoUrl}
                               alt="profile"
                               className="w-full h-full object-cover"
                             />
                           </div>
                         )}
-                        <div className={layoutConfig.headerPosition === "top" ? "" : "flex-1"}>
-                          <ResumeHeader formData={formData} personalConfig={personalConfig} />
+                        <div
+                          className={
+                            resume.layoutConfig.headerPosition === "top"
+                              ? ""
+                              : "flex-1"
+                          }
+                        >
+                          <ResumeHeader
+                            formData={resume.formData}
+                            personalConfig={resume.personalConfig}
+                          />
                         </div>
                       </div>
 
                       <div className="mt-6 flex-1 overflow-hidden">
-                        {formData.profile && (
+                        {resume.formData.profile && (
                           <div className="mb-6">
                             <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
                               PROFILE
@@ -1463,7 +2047,7 @@ const Resume = () => {
                             <div
                               className="resume-item-description text-sm text-slate-700 leading-relaxed"
                               dangerouslySetInnerHTML={{
-                                __html: formData.profile,
+                                __html: resume.formData.profile,
                               }}
                             />
                           </div>
@@ -1471,26 +2055,26 @@ const Resume = () => {
 
                         {/* Dynamic Sections */}
                         {(() => {
-                          const visibleSections = sectionOrder
+                          const visibleSections = resume.sectionOrder
                             .map((sectionId) =>
-                              sections.find((s) => s.id === sectionId)
+                              resume.sections.find((s) => s.id === sectionId)
                             )
                             .filter((section) => section && section.visible);
 
                           // If columns is one, render as before
-                          if (layoutConfig.columns === "one") {
+                          if (resume.layoutConfig.columns === "one") {
                             return (
                               <div className="space-y-6">
                                 {visibleSections.map((section) => (
                                   <SectionPreview
                                     key={section.id}
                                     section={section}
-                                    spacingConfig={spacingConfig}
+                                    spacingConfig={resume.spacingConfig}
                                   />
                                 ))}
                               </div>
                             );
-                          } else if (layoutConfig.columns === "two") {
+                          } else if (resume.layoutConfig.columns === "two") {
                             // Use measured distribution if available; fallback to estimated-height distribution
                             let leftSections = [];
                             let rightSections = [];
@@ -1502,15 +2086,25 @@ const Resume = () => {
                               const estimateHeight = (section) => {
                                 const base = 40; // section heading
                                 const perItem = 48; // approximate per item (title + subtitle/description)
-                                return base + (section.items ? section.items.length * perItem : 0);
+                                return (
+                                  base +
+                                  (section.items
+                                    ? section.items.length * perItem
+                                    : 0)
+                                );
                               };
-                              const totalHeight = visibleSections.reduce((s, sec) => s + estimateHeight(sec), 0);
-                              const columnHeight = (pdfPreviewRef.current ? pdfPreviewRef.current.clientHeight : 900) - 120;
+                              const columnHeight =
+                                (pdfPreviewRef.current
+                                  ? pdfPreviewRef.current.clientHeight
+                                  : 900) - 120;
                               let acc = 0;
                               for (let i = 0; i < visibleSections.length; i++) {
                                 const sec = visibleSections[i];
                                 const h = estimateHeight(sec);
-                                if (acc + h <= columnHeight || leftSections.length === 0) {
+                                if (
+                                  acc + h <= columnHeight ||
+                                  leftSections.length === 0
+                                ) {
                                   leftSections.push(sec);
                                   acc += h;
                                 } else {
@@ -1522,7 +2116,7 @@ const Resume = () => {
                               <div
                                 className="grid gap-6"
                                 style={{
-                                  gridTemplateColumns: `${layoutConfig.leftColumnWidth}% ${layoutConfig.rightColumnWidth}%`,
+                                  gridTemplateColumns: `${resume.layoutConfig.leftColumnWidth}% ${resume.layoutConfig.rightColumnWidth}%`,
                                 }}
                               >
                                 <div className="space-y-6">
@@ -1530,7 +2124,7 @@ const Resume = () => {
                                     <SectionPreview
                                       key={section.id}
                                       section={section}
-                                      spacingConfig={spacingConfig}
+                                      spacingConfig={resume.spacingConfig}
                                     />
                                   ))}
                                 </div>
@@ -1539,7 +2133,7 @@ const Resume = () => {
                                     <SectionPreview
                                       key={section.id}
                                       section={section}
-                                      spacingConfig={spacingConfig}
+                                      spacingConfig={resume.spacingConfig}
                                     />
                                   ))}
                                 </div>
@@ -1549,8 +2143,12 @@ const Resume = () => {
                             // mix
                             const first = visibleSections[0];
                             const rest = visibleSections.slice(1);
-                            const leftRest = distributed.left.length ? distributed.left.slice(first ? 0 : 0) : rest.slice(0, Math.ceil(rest.length / 2));
-                            const rightRest = distributed.right.length ? distributed.right.slice(0) : rest.slice(Math.ceil(rest.length / 2));
+                            const leftRest = distributed.left.length
+                              ? distributed.left.slice(first ? 0 : 0)
+                              : rest.slice(0, Math.ceil(rest.length / 2));
+                            const rightRest = distributed.right.length
+                              ? distributed.right.slice(0)
+                              : rest.slice(Math.ceil(rest.length / 2));
                             return (
                               <div>
                                 {first && (
@@ -1600,6 +2198,52 @@ const Resume = () => {
           </section>
         </div>
       </main>
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbarOpen}
+        onClose={() => setSnackbarOpen(false)}
+        autoHideDuration={3000}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMsg}
+        </Alert>
+      </Snackbar>
+
+      {/* Conflict confirmation dialog when remote changes detected */}
+      <Dialog
+        open={conflictDialogOpen}
+        onClose={() => setConflictDialogOpen(false)}
+      >
+        <DialogTitle>Remote changes detected</DialogTitle>
+        <DialogContent>
+          Remote version of this resume was changed since you last saved.
+          Overwrite remote with your current changes?
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConflictDialogOpen(false);
+              showSnackbar("info", "Save cancelled");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              setConflictDialogOpen(false);
+              await saveToFirestore({ force: true });
+            }}
+          >
+            Overwrite
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

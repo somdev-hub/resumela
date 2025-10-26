@@ -36,7 +36,7 @@ const SortableItem = React.memo(
               <button onClick={() => onToggleCollapsed(section.id, item.id)} className="text-indigo-600 hover:text-indigo-700 p-2" title="Edit">
                 <FiEdit2 size={16} />
               </button>
-              <button onClick={() => onRemove(section.id, item.id)} className="text-rose-600 hover:text-rose-700 p-2" title="Remove">
+              <button onClick={() => onRemove && onRemove(item.id)} className="text-rose-600 hover:text-rose-700 p-2" title="Remove">
                 <FiX size={18} />
               </button>
             </div>
