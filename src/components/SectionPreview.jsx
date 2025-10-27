@@ -1,4 +1,5 @@
 import React from "react";
+import LinkIcon from "@mui/icons-material/Link";
 
 const SectionPreview = ({ section, spacingConfig }) => {
   // Helper: extract list items from HTML produced by the RichTextEditor.
@@ -26,7 +27,7 @@ const SectionPreview = ({ section, spacingConfig }) => {
   };
 
   return (
-    <div className="mb-6">
+    <div className="mb-2">
       <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-2">
         {section.name.toUpperCase()}
       </h2>
@@ -45,10 +46,10 @@ const SectionPreview = ({ section, spacingConfig }) => {
             return (
               <div
                 key={item.id}
-                className="resume-entry flex items-center flex-wrap"
+                className="resume-entry-less-margin"
               >
                 {item.data.title && (
-                  <h3 className="resume-item-title font-bold text-slate-900 inline">
+                  <span className="resume-item-title font-bold text-slate-900 inline">
                     {item.data.titleUrl ? (
                       <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer">
                         {item.data.title}
@@ -61,44 +62,104 @@ const SectionPreview = ({ section, spacingConfig }) => {
                         <span className="mx-2">—</span>
                       </>
                     )}
-                  </h3>
+                  </span>
                 )}
-                <p
-                  className="resume-item-description text-sm text-slate-700"
-                  style={{ lineHeight: spacingConfig.lineHeight }}
-                >
-                  {inlineText}
-                </p>
+                {/* Render skills as inline spans so they wrap naturally instead of forcing a new paragraph line */}
+                {skills.length > 0 && (
+                  <span
+                    className="resume-item-description text-sm text-slate-700"
+                    style={{
+                      lineHeight: spacingConfig.lineHeight,
+                      whiteSpace: "normal",
+                      overflowWrap: "break-word",
+                    }}
+                  >
+                    {skills.map((sk, idx) => (
+                      <span
+                        key={idx}
+                        style={{ whiteSpace: "normal", fontSize: "9pt", fontWeight: "normal" }}
+                      >
+                        {idx > 0 && (
+                          <span
+                            className="delimiter"
+                            style={{ padding: "0 0.15em", verticalAlign: "middle", display: "inline-block", opacity: 0.6 }}
+                          >
+                            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "0.25em", marginTop: "1px" }}>|</span>
+                          </span>
+                        )}
+                        {idx > 0 ? <>&nbsp;{sk}</> : sk}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </div>
             );
           }
 
           // Default rendering for non-skills sections
+          const isCert = sectionId.includes("certif") || sectionName.includes("certif");
+          const hasDescription = Boolean(item.data.description && item.data.description.trim());
+
           return (
-            <div key={item.id} className="resume-entry">
+            <div key={item.id} className={`resume-entry ${isCert && !hasDescription ? "resume-entry-no-margin" : ""}`}>
               {item.data.title && (
-                <h3 className="resume-item-title font-bold text-slate-900">
-                  {item.data.titleUrl ? (
-                    <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer">
-                      {item.data.title}
-                    </a>
+                // For certificates without a description render a simple bullet + normal-weight title
+                isCert && !hasDescription ? (
+                  <p className="resume-item-description text-sm text-slate-700" style={{ display: "flex", alignItems: "center" }}>
+                    <span style={{ marginRight: "0.5rem" }}>•</span>
+                    {item.data.titleUrl ? (
+                      <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer" style={{ fontWeight: "normal" }}>
+                        {item.data.title}
+                        <LinkIcon fontSize="small" style={{ verticalAlign: "middle", marginLeft: 4, opacity: 0.6 }} />
+                      </a>
+                    ) : (
+                      <span style={{ fontWeight: "normal" }}>{item.data.title}</span>
+                    )}
+                  </p>
+                ) : (
+                  // Default: bold title (works for certificates with descriptions and other sections)
+                  <h3 className="resume-item-title font-bold text-slate-900">
+                    {item.data.titleUrl ? (
+                      <a href={item.data.titleUrl} className="hover:underline" target="_blank" rel="noopener noreferrer">
+                        {item.data.title}
+                        <LinkIcon fontSize="small" style={{ verticalAlign: "middle", marginLeft: 6, opacity: 0.6 }} />
+                      </a>
+                    ) : (
+                      item.data.title
+                    )}
+                  </h3>
+                )
+              )}
+                  {/* Publication entries use publisher and publicationDate fields */}
+                  {(sectionId.includes("publication") || sectionName.includes("publication")) ? (
+                    <>
+                      {item.data.publisher && (
+                        <p className="resume-item-subtitle text-sm italic text-slate-700">
+                          {item.data.publisher}
+                        </p>
+                      )}
+                      {item.data.publicationDate && (
+                        <p className="resume-item-description text-xs text-slate-600">
+                          {item.data.publicationDate}
+                        </p>
+                      )}
+                    </>
                   ) : (
-                    item.data.title
+                    <>
+                      {item.data.subtitle && (
+                        <p className="resume-item-subtitle text-sm italic text-slate-700">
+                          {item.data.subtitle}
+                        </p>
+                      )}
+                      {(item.data.date || item.data.location) && (
+                        <p className="resume-item-description text-xs text-slate-600">
+                          {[item.data.date, item.data.location]
+                            .filter(Boolean)
+                            .join(" | ")}
+                        </p>
+                      )}
+                    </>
                   )}
-                </h3>
-              )}
-              {item.data.subtitle && (
-                <p className="resume-item-subtitle text-sm italic text-slate-700">
-                  {item.data.subtitle}
-                </p>
-              )}
-              {(item.data.date || item.data.location) && (
-                <p className="resume-item-description text-xs text-slate-600">
-                  {[item.data.date, item.data.location]
-                    .filter(Boolean)
-                    .join(" | ")}
-                </p>
-              )}
               {item.data.description && (
                 <div
                   className="resume-item-description text-sm text-slate-700 mt-1"

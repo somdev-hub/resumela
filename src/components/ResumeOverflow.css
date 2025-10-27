@@ -1,0 +1,222 @@
+/**
+ * Resume Overflow System
+ * 
+ * This CSS implements a three-stage overflow system:
+ * Stage 1: Content fills LEFT COLUMN
+ * Stage 2: Overflow goes to RIGHT COLUMN (column-fill: auto)
+ * Stage 3: Overflow creates NEW PAGE (page-break-after: always)
+ * 
+ * Based on FlowCV and professional resume builders architecture
+ */
+
+/* ==================== PAGE CONTAINER ==================== */
+
+.resume-pages-container {
+  /* Container for all pages - no height limit, grows naturally */
+  width: 210mm; /* A4 width */
+  margin: 0 auto;
+}
+
+.resume-page {
+  /* Individual page container - Fixed A4 dimensions */
+  width: 210mm;
+  height: 297mm;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  
+  /* Force page break in print/PDF */
+  page-break-after: always;
+  break-after: page;
+  
+  /* Prevent page from being broken across pages in print */
+  page-break-inside: avoid;
+  break-inside: avoid;
+  
+  /* Add margin between pages for visual separation in preview */
+  margin-bottom: 20px;
+}
+
+.resume-page:last-child {
+  /* Last page shouldn't force a break after it */
+  page-break-after: auto;
+  break-after: auto;
+  margin-bottom: 0;
+}
+
+/* ==================== COLUMN LAYOUT ==================== */
+
+.resume-content-columns {
+  /* Two-column layout using CSS multi-column */
+  column-count: 2;
+  column-gap: 20px; /* Space between columns */
+  column-fill: auto; /* Sequential filling - left first, then right */
+  
+  /* Height constraint forces overflow to next column */
+  height: 100%;
+  
+  /* Prevent content from overflowing outside the page */
+  overflow: visible;
+}
+
+.resume-content-single {
+  /* Single column layout - no column properties */
+  height: 100%;
+  overflow: visible;
+}
+
+/* ==================== BREAK CONTROL ==================== */
+
+/* Prevent resume items from breaking across columns */
+.resume-entry,
+.resume-section-item {
+  /* Modern standard (2023+) */
+  break-inside: avoid;
+  break-inside: avoid-column;
+  
+  /* Legacy support for older browsers */
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Keep section headings with their content */
+.resume-section-heading {
+  break-after: avoid;
+  break-after: avoid-column;
+  
+  /* Legacy */
+  -webkit-column-break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* Prevent entire sections from breaking if small enough */
+.resume-section {
+  break-inside: avoid;
+  
+  /* Legacy */
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Allow large sections to break naturally */
+.resume-section.large-section {
+  break-inside: auto;
+  -webkit-column-break-inside: auto;
+  page-break-inside: auto;
+}
+
+/* ==================== FULL-WIDTH ELEMENTS ==================== */
+
+/* Header should span both columns */
+.resume-header {
+  column-span: all;
+  -webkit-column-span: all;
+  
+  /* Add some spacing below header */
+  /* margin-bottom: 1rem; */
+  padding-bottom: 1rem;
+}
+
+/* Profile section can also span both columns if desired */
+.resume-profile-full {
+  column-span: all;
+  -webkit-column-span: all;
+  margin-bottom: 1rem;
+}
+
+/* ==================== PRINT STYLES ==================== */
+
+@media print {
+  .resume-pages-container {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .resume-page {
+    /* Remove shadow and margins in print */
+    box-shadow: none;
+    margin: 0;
+    
+    /* Ensure proper page breaks */
+    page-break-after: always;
+    break-after: page;
+  }
+  
+  .resume-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  
+  /* Force exact A4 dimensions in print */
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  
+  /* Hide preview-only elements */
+  .preview-only {
+    display: none !important;
+  }
+}
+
+/* ==================== PDF GENERATION COMPATIBILITY ==================== */
+
+/* Puppeteer/headless browser compatibility */
+.resume-content-columns {
+  /* Ensure columns work properly in Puppeteer */
+  -webkit-column-count: 2;
+  -moz-column-count: 2;
+  
+  -webkit-column-gap: 20px;
+  -moz-column-gap: 20px;
+  
+  -webkit-column-fill: auto;
+  -moz-column-fill: auto;
+}
+
+/* ==================== RESPONSIVE ADJUSTMENTS ==================== */
+
+/* For very small content, prevent awkward breaks */
+.resume-entry {
+  min-height: 20px;
+}
+
+/* Orphan/widow control for better typography */
+.resume-content-columns {
+  orphans: 2;
+  widows: 2;
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+
+/* Force an element to start in a new column */
+.start-new-column {
+  break-before: column;
+  -webkit-column-break-before: always;
+}
+
+/* Force an element to start on a new page */
+.start-new-page {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* Allow an element to break freely */
+.allow-break {
+  break-inside: auto;
+  -webkit-column-break-inside: auto;
+  page-break-inside: auto;
+}
+
+/* ==================== DEBUGGING HELPERS ==================== */
+
+/* Uncomment these to visualize column boundaries during development */
+/*
+.resume-content-columns {
+  column-rule: 1px dashed #e0e0e0;
+}
+
+.resume-entry {
+  outline: 1px solid rgba(255, 0, 0, 0.1);
+}
+*/

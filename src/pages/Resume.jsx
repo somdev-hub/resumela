@@ -13,6 +13,7 @@ import ReactDOM from "react-dom/client";
 const measurementRoots = new WeakMap();
 // pdf generation is handled server-side; client-side html2canvas/jsPDF removed
 import { FiPlus } from "react-icons/fi";
+import MultiPageResume from "../components/MultiPageResume";
 import {
   KeyboardSensor,
   PointerSensor,
@@ -66,7 +67,7 @@ const Resume = () => {
       lineHeight: 1.25,
       marginLR: 10, // left & right margin in mm
       marginTB: 10, // top & bottom margin in mm
-      entrySpacing: 12, // px between entries
+      entrySpacing: 0, // px between entries
     },
     personalConfig: {
       align: "center", // left | center | right
@@ -1889,24 +1890,13 @@ const Resume = () => {
           {/* Right Preview Column */}
           <section className=" md:flex-[0_0_auto] h-full flex justify-center flex-col">
             <div className="flex-1 overflow-auto hide-scrollbar">
-              <div className="flex items-start justify-center ">
+              <div className="flex items-start justify-center py-6">
                 <div className="relative" id="preview-resume">
-                  <div className="pointer-events-none absolute right-6 top-6 flex items-center gap-2 rounded-full bg-indigo-50 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-600">
-                    <span className="h-2 w-2 rounded-full bg-indigo-500" /> Live
-                    preview
-                  </div>
                   <div
                     ref={combinedPreviewRef}
                     id="resume-preview"
-                    className="resume-preview relative w-[794px] h-[1123px] bg-white shadow-xl ring-1 ring-indigo-100 border border-slate-200 overflow-hidden"
+                    className="resume-preview relative"
                     style={{
-                      width: `${A4_WIDTH_PX}px`,
-                      minWidth: `${A4_WIDTH_PX}px`,
-                      height: `${A4_HEIGHT_PX}px`,
-                      minHeight: `${A4_HEIGHT_PX}px`,
-                      padding: `${resume.spacingConfig.marginTB * 3.78}px ${
-                        resume.spacingConfig.marginLR * 3.78
-                      }px`,
                       // expose CSS variables for font-size, line-height and entry spacing
                       ["--resume-font-size"]: `${resume.spacingConfig.fontSize}pt`,
                       ["--resume-line-height"]: resume.spacingConfig.lineHeight,
@@ -1916,49 +1906,6 @@ const Resume = () => {
                         : undefined,
                     }}
                   >
-                    <div className="absolute left-6 bottom-6 z-20 flex items-center gap-2">
-                      <input
-                        value={loadDocId}
-                        onChange={(e) => setLoadDocId(e.target.value)}
-                        placeholder="Firestore doc id"
-                        className="px-2 py-1 text-xs rounded border border-slate-200 w-56"
-                      />
-                      <button
-                        onClick={() => loadFromFirestore(loadDocId)}
-                        disabled={isSaving}
-                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow ${
-                          isSaving
-                            ? "bg-slate-400"
-                            : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                      >
-                        {isSaving ? (
-                          <CircularProgress size={14} color="inherit" />
-                        ) : null}
-                        Load
-                      </button>
-                      <button
-                        onClick={() => saveToFirestore()}
-                        disabled={isSaving}
-                        className={`inline-flex items-center gap-2 rounded-lg px-3 py-1 text-xs font-semibold text-white shadow ${
-                          isSaving
-                            ? "bg-slate-400"
-                            : "bg-green-600 hover:bg-green-700"
-                        }`}
-                      >
-                        {isSaving ? (
-                          <>
-                            <CircularProgress size={14} color="inherit" />{" "}
-                            Saving...
-                          </>
-                        ) : (
-                          "Save to Firestore"
-                        )}
-                      </button>
-                    </div>
-                    <div className="absolute right-6 top-16 z-30 px-3 py-1 rounded text-xs font-medium text-slate-700">
-                      Last saved: {formatLastSaved(lastSavedAt)}
-                    </div>
                     {/* Hidden measurement container used to compute section heights for column-aware distribution */}
                     <div
                       ref={measureContainerRef}
@@ -1992,205 +1939,24 @@ const Resume = () => {
                       .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; font-style: italic !important; color: #4B5563 !important; }
                       .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; }
                       .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
+                      /* Variant for compact entries: same as .resume-entry but no bottom spacing */
+                      .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
+                      .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
                     `}</style>
-                    <div className="h-full flex flex-col">
-                      {/* Header with photo and contact info using ResumeHeader */}
-                      <div
-                        className={`${
-                          resume.layoutConfig.headerPosition === "left"
-                            ? "flex gap-6"
-                            : resume.layoutConfig.headerPosition === "right"
-                            ? "flex gap-6 flex-row-reverse"
-                            : "block"
-                        } ${
-                          resume.layoutConfig.headerPosition === "top"
-                            ? "border-b border-slate-200 pb-6"
-                            : ""
-                        }`}
-                        style={{ textAlign: resume.personalConfig.align }}
-                      >
-                        {resume.formData.photoUrl && (
-                          <div
-                            className={`${
-                              resume.layoutConfig.headerPosition === "top"
-                                ? "h-24 w-24"
-                                : "h-20 w-20"
-                            } rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0`}
-                          >
-                            <img
-                              src={resume.formData.photoUrl}
-                              alt="profile"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <div
-                          className={
-                            resume.layoutConfig.headerPosition === "top"
-                              ? ""
-                              : "flex-1"
-                          }
-                        >
-                          <ResumeHeader
-                            formData={resume.formData}
-                            personalConfig={resume.personalConfig}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex-1 overflow-hidden">
-                        {resume.formData.profile && (
-                          <div className="mb-6">
-                            <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 pb-1 mb-4">
-                              PROFILE
-                            </h2>
-                            <div
-                              className="resume-item-description text-sm text-slate-700 leading-relaxed"
-                              dangerouslySetInnerHTML={{
-                                __html: resume.formData.profile,
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Dynamic Sections */}
-                        {(() => {
-                          const visibleSections = resume.sectionOrder
-                            .map((sectionId) =>
-                              resume.sections.find((s) => s.id === sectionId)
-                            )
-                            .filter((section) => section && section.visible);
-
-                          // If columns is one, render as before
-                          if (resume.layoutConfig.columns === "one") {
-                            return (
-                              <div className="space-y-6">
-                                {visibleSections.map((section) => (
-                                  <SectionPreview
-                                    key={section.id}
-                                    section={section}
-                                    spacingConfig={resume.spacingConfig}
-                                  />
-                                ))}
-                              </div>
-                            );
-                          } else if (resume.layoutConfig.columns === "two") {
-                            // Use measured distribution if available; fallback to estimated-height distribution
-                            let leftSections = [];
-                            let rightSections = [];
-                            if (distributed.left && distributed.left.length) {
-                              leftSections = distributed.left;
-                              rightSections = distributed.right;
-                            } else {
-                              // estimate heights when we don't have measurements
-                              const estimateHeight = (section) => {
-                                const base = 40; // section heading
-                                const perItem = 48; // approximate per item (title + subtitle/description)
-                                return (
-                                  base +
-                                  (section.items
-                                    ? section.items.length * perItem
-                                    : 0)
-                                );
-                              };
-                              const columnHeight =
-                                (pdfPreviewRef.current
-                                  ? pdfPreviewRef.current.clientHeight
-                                  : 900) - 120;
-                              let acc = 0;
-                              for (let i = 0; i < visibleSections.length; i++) {
-                                const sec = visibleSections[i];
-                                const h = estimateHeight(sec);
-                                if (
-                                  acc + h <= columnHeight ||
-                                  leftSections.length === 0
-                                ) {
-                                  leftSections.push(sec);
-                                  acc += h;
-                                } else {
-                                  rightSections.push(sec);
-                                }
-                              }
-                            }
-                            return (
-                              <div
-                                className="grid gap-6"
-                                style={{
-                                  gridTemplateColumns: `${resume.layoutConfig.leftColumnWidth}% ${resume.layoutConfig.rightColumnWidth}%`,
-                                }}
-                              >
-                                <div className="space-y-6">
-                                  {leftSections.map((section) => (
-                                    <SectionPreview
-                                      key={section.id}
-                                      section={section}
-                                      spacingConfig={resume.spacingConfig}
-                                    />
-                                  ))}
-                                </div>
-                                <div className="space-y-6">
-                                  {rightSections.map((section) => (
-                                    <SectionPreview
-                                      key={section.id}
-                                      section={section}
-                                      spacingConfig={resume.spacingConfig}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          } else {
-                            // mix
-                            const first = visibleSections[0];
-                            const rest = visibleSections.slice(1);
-                            const leftRest = distributed.left.length
-                              ? distributed.left.slice(first ? 0 : 0)
-                              : rest.slice(0, Math.ceil(rest.length / 2));
-                            const rightRest = distributed.right.length
-                              ? distributed.right.slice(0)
-                              : rest.slice(Math.ceil(rest.length / 2));
-                            return (
-                              <div>
-                                {first && (
-                                  <SectionPreview
-                                    key={first.id}
-                                    section={first}
-                                    spacingConfig={spacingConfig}
-                                  />
-                                )}
-                                {rest.length > 0 && (
-                                  <div
-                                    className="grid gap-6 mt-6"
-                                    style={{
-                                      gridTemplateColumns: `${layoutConfig.leftColumnWidth}% ${layoutConfig.rightColumnWidth}%`,
-                                    }}
-                                  >
-                                    <div className="space-y-6">
-                                      {leftRest.map((section) => (
-                                        <SectionPreview
-                                          key={section.id}
-                                          section={section}
-                                          spacingConfig={spacingConfig}
-                                        />
-                                      ))}
-                                    </div>
-                                    <div className="space-y-6">
-                                      {rightRest.map((section) => (
-                                        <SectionPreview
-                                          key={section.id}
-                                          section={section}
-                                          spacingConfig={spacingConfig}
-                                        />
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    </div>
+                    
+                    {/* Multi-page resume component with overflow handling */}
+                    <MultiPageResume 
+                      resume={resume}
+                      A4_WIDTH_PX={A4_WIDTH_PX}
+                      A4_HEIGHT_PX={A4_HEIGHT_PX}
+                      formatLastSaved={formatLastSaved}
+                      lastSavedAt={lastSavedAt}
+                      isSaving={isSaving}
+                      loadDocId={loadDocId}
+                      setLoadDocId={setLoadDocId}
+                      loadFromFirestore={loadFromFirestore}
+                      saveToFirestore={saveToFirestore}
+                    />
                   </div>
                 </div>
               </div>
@@ -2219,30 +1985,32 @@ const Resume = () => {
         open={conflictDialogOpen}
         onClose={() => setConflictDialogOpen(false)}
       >
-        <DialogTitle>Remote changes detected</DialogTitle>
-        <DialogContent>
-          Remote version of this resume was changed since you last saved.
-          Overwrite remote with your current changes?
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setConflictDialogOpen(false);
-              showSnackbar("info", "Save cancelled");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              setConflictDialogOpen(false);
-              await saveToFirestore({ force: true });
-            }}
-          >
-            Overwrite
-          </Button>
-        </DialogActions>
+        <>
+          <DialogTitle>Remote changes detected</DialogTitle>
+          <DialogContent>
+            Remote version of this resume was changed since you last saved.
+            Overwrite remote with your current changes?
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setConflictDialogOpen(false);
+                showSnackbar("info", "Save cancelled");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                setConflictDialogOpen(false);
+                await saveToFirestore({ force: true });
+              }}
+            >
+              Overwrite
+            </Button>
+          </DialogActions>
+        </>
       </Dialog>
     </div>
   );
