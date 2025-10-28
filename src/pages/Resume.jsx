@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState, useEffect } from "react";
 // MUI components for polished toasts/dialogs/progress
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -24,7 +23,6 @@ import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import UrlDialog from "../components/UrlDialog";
 import AddSectionDialog from "../components/AddSectionDialog";
 import RichTextEditor from "../components/RichTextEditor";
-import ResumeHeader from "../components/ResumeHeader";
 import SectionPreview from "../components/SectionPreview";
 import { renderSectionForm } from "../components/SectionForms";
 import { useParams } from "react-router-dom";
@@ -345,8 +343,6 @@ const Resume = () => {
   // Local aliases used in render: ensure these are defined to avoid accidental
   // `spacingConfig` / `layoutConfig` undefined errors in templates that reference
   // them directly. Use safe fallbacks to an empty object.
-  const spacingConfig = resume?.spacingConfig || {};
-  const layoutConfig = resume?.layoutConfig || {};
 
   const pdfPreviewRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -938,7 +934,12 @@ const Resume = () => {
         return;
       }
 
-      // hydrate sections with icons from availableSections (we don't store component functions in Firestore)
+      // Ensure sectionOrder contains only explicitly added sections
+      const validSectionOrder = (layout?.sectionOrder || []).filter((sectionId) =>
+        (content?.sections || []).some((s) => s.id === sectionId)
+      );
+
+      // Hydrate sections with icons from availableSections
       const hydratedSections = (content?.sections || []).map((s) => ({
         ...s,
         icon: availableSections.find((a) => a.id === s.id)?.icon,
@@ -951,13 +952,15 @@ const Resume = () => {
           ? hydratedSections
           : content?.sections || prev.sections,
         ...(layout || {}),
+        sectionOrder: validSectionOrder,
       }));
 
       setFirestoreDocId(docId);
       try {
         localStorage.setItem("resume_firestore_docId", docId);
       } catch (e) {}
-      // update last saved signature from the loaded content
+
+      // Update last saved signature from the loaded content
       try {
         const sig = JSON.stringify({
           formData: content?.formData || {},
@@ -1924,10 +1927,10 @@ const Resume = () => {
                       .resume-preview {
                         --resume-size-name: calc(var(--resume-font-size) * 2.2);
                         --resume-size-role: calc(var(--resume-font-size) * 1.15);
-                        --resume-size-section: calc(var(--resume-font-size) * 1.2);
-                        --resume-size-title: calc(var(--resume-font-size) * 1.1);
+                        --resume-size-section: calc(var(--resume-font-size) * 1.25);
+                        --resume-size-title: calc(var(--resume-font-size) * 1.05);
                         --resume-size-subtitle: calc(var(--resume-font-size) * 1);
-                        --resume-size-body: calc(var(--resume-font-size) * 1.075);
+                        --resume-size-body: calc(var(--resume-font-size) * 1);
                         font-size: var(--resume-size-body);
                         line-height: var(--resume-line-height);
                       }
