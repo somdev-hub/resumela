@@ -6,7 +6,17 @@ import Navbar from "../components/Navbar";
 import Cards from "../components/Cards";
 import { useNavigate } from "react-router-dom";
 import { initFirestore } from "../firebase/firestore";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Button,
+} from "@mui/material";
 
 // Create a small SVG data URL used as a preview thumbnail for the document cards
 const svgDataUrl = (title) => {
@@ -28,15 +38,16 @@ const Home = () => {
       setLoading(true);
       try {
         const db = initFirestore();
-        const snaps = await getDocs(collection(db, "resume_content"));
-        const items = snaps.docs.map((d) => {
+        // Fetch both resumes and cover letters
+        const resumeSnaps = await getDocs(collection(db, "resume_content"));
+        const coverLetterSnaps = await getDocs(collection(db, "coverletter_content"));
+        
+        const resumeItems = resumeSnaps.docs.map((d) => {
           const data = d.data() || {};
-          // Prefer a user-visible name in formData.fullName, fall back to title or untitled
           const title =
             (data.formData && data.formData.fullName) ||
             data.title ||
             "Untitled Resume";
-          // Firestore timestamps may be present on updatedAt/createdAt
           const updatedAt = data.updatedAt
             ? data.updatedAt.toDate
               ? data.updatedAt.toDate().toISOString()
@@ -54,10 +65,40 @@ const Home = () => {
             created: true,
           };
         });
-        if (mounted) setResumes(items);
+
+        const coverLetterItems = coverLetterSnaps.docs.map((d) => {
+          const data = d.data() || {};
+          const title =
+            (data.fullName ? `Cover Letter - ${data.fullName}` : null) ||
+            data.title ||
+            "Untitled Cover Letter";
+          const updatedAt = data.updatedAt
+            ? data.updatedAt.toDate
+              ? data.updatedAt.toDate().toISOString()
+              : data.updatedAt
+            : data.createdAt
+            ? data.createdAt.toDate
+              ? data.createdAt.toDate().toISOString()
+              : data.createdAt
+            : new Date().toISOString();
+          return {
+            id: d.id,
+            title,
+            updatedAt,
+            type: "cover",
+            created: true,
+          };
+        });
+
+        // Combine and sort by updatedAt
+        const allItems = [...resumeItems, ...coverLetterItems].sort(
+          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+        );
+
+        if (mounted) setResumes(allItems);
       } catch (err) {
         // Keep simple for now — surface error in console
-        console.error("Failed to load resumes:", err);
+        console.error("Failed to load documents:", err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -67,6 +108,44 @@ const Home = () => {
       mounted = false;
     };
   }, []);
+
+  const handleDelete = async (docId, docType) => {
+    const ok = window.confirm("Delete this document? This action cannot be undone.");
+    if (!ok) return;
+    setLoading(true);
+    try {
+      const db = initFirestore();
+      if (docType === "resume") {
+        // delete resume content doc
+        await deleteDoc(doc(db, "resume_content", docId));
+        // try to delete resume layout doc with same id if present (ignore errors)
+        try {
+          await deleteDoc(doc(db, "resume_layout", docId));
+        } catch (e) {
+          // ignore missing layout doc
+          console.debug("No layout doc to delete or failed:", e?.message || e);
+        }
+      } else if (docType === "cover") {
+        // delete cover letter content doc
+        await deleteDoc(doc(db, "coverletter_content", docId));
+        // try to delete cover letter layout doc with same id if present (ignore errors)
+        try {
+          await deleteDoc(doc(db, "coverletter_layout", docId));
+        } catch (e) {
+          // ignore missing layout doc
+          console.debug("No layout doc to delete or failed:", e?.message || e);
+        }
+      }
+      // remove locally
+      setResumes((prev) => prev.filter((r) => r.id !== docId));
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+      // keep simple UX for now
+      window.alert("Failed to delete document. See console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
   // Helper to get time ago string
   const getTimeAgo = (dateStr) => {
     const now = new Date();
@@ -81,6 +160,19 @@ const Home = () => {
   };
 
   const [userName, setUserName] = useState("");
+
+  // Create New dialog state: choose Resume or Cover Letter
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createType, setCreateType] = useState("resume");
+
+  const openCreateDialog = () => setCreateDialogOpen(true);
+  const closeCreateDialog = () => setCreateDialogOpen(false);
+
+  const handleCreateConfirm = () => {
+    closeCreateDialog();
+    if (createType === "resume") navigate(`/resume`);
+    else if (createType === "cover") navigate(`/cover-letter`);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -120,6 +212,25 @@ const Home = () => {
           What would you like to do today?
         </p>
       </div>
+      
+      <Dialog open={createDialogOpen} onClose={closeCreateDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Create new document</DialogTitle>
+        <DialogContent>
+          <RadioGroup
+            value={createType}
+            onChange={(e) => setCreateType(e.target.value)}
+          >
+            <FormControlLabel value="resume" control={<Radio />} label="Resume" />
+            <FormControlLabel value="cover" control={<Radio />} label="Cover letter" />
+          </RadioGroup>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeCreateDialog}>Cancel</Button>
+          <Button variant="contained" onClick={handleCreateConfirm}>
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Cards />
 
@@ -149,7 +260,7 @@ const Home = () => {
               <p className="text-gray-500 text-sm mb-2">
                 {doc.type === "resume"
                   ? `Updated ${getTimeAgo(doc.updatedAt)}`
-                  : `Created ${getTimeAgo(doc.updatedAt)}`}{" "}
+                  : `Updated ${getTimeAgo(doc.updatedAt)}`} {" "}
                 <span
                   className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
                     doc.created
@@ -161,18 +272,30 @@ const Home = () => {
                 </span>
               </p>
               {/* Removed preview text here */}
-              <button
-                onClick={() => navigate(`/resume/${doc.id}`)}
-                className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
-              >
-                Edit
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => 
+                    doc.type === "resume" 
+                      ? navigate(`/resume/${doc.id}`)
+                      : navigate(`/cover-letter/${doc.id}`)
+                  }
+                  className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(doc.id, doc.type)}
+                  className="bg-red-50 text-red-700 px-3 py-2 rounded shadow hover:bg-red-100 font-semibold"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
           {/* Create New Card */}
           <button
             type="button"
-            onClick={() => navigate("/resume")}
+            onClick={openCreateDialog}
             className="cursor-pointer bg-gray-100 rounded-xl shadow-md p-4 flex flex-col items-center justify-center hover:bg-gray-200"
           >
             <div className="text-blue-500 text-3xl mb-2">+</div>

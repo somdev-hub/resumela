@@ -1,15 +1,16 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FiMenu, FiCheck, FiX, FiEdit2 } from "react-icons/fi";
+import { FiMenu, FiCheck, FiX, FiEdit2, FiEye, FiEyeOff } from "react-icons/fi";
 
 const SortableItem = React.memo(
-  ({ item, section, children, onToggleCollapsed, onRemove }) => {
+  ({ item, section, children, onToggleCollapsed, onRemove, onToggleVisibility }) => {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
     };
+    const isVisible = Object.prototype.hasOwnProperty.call(item, "visible") ? !!item.visible : true;
     const getItemSummary = () => {
       const { title, subtitle, date } = item.data;
       if (title) return title;
@@ -33,6 +34,11 @@ const SortableItem = React.memo(
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {onToggleVisibility && (
+                <button onClick={() => onToggleVisibility(section.id, item.id)} className="text-slate-600 hover:text-slate-800 p-2" title={isVisible ? "Hide from preview" : "Show in preview"}>
+                  {isVisible ? <FiEye size={16} /> : <FiEyeOff size={16} />}
+                </button>
+              )}
               <button onClick={() => onToggleCollapsed(section.id, item.id)} className="text-indigo-600 hover:text-indigo-700 p-2" title="Edit">
                 <FiEdit2 size={16} />
               </button>
@@ -46,7 +52,16 @@ const SortableItem = React.memo(
     }
     return (
       <div ref={setNodeRef} style={style} className="">
-        
+        <div className="flex items-center justify-end gap-2 mb-2">
+          {onToggleVisibility && (
+            <button onClick={() => onToggleVisibility(section.id, item.id)} className="text-slate-600 hover:text-slate-800 p-2" title={isVisible ? "Hide from preview" : "Show in preview"}>
+              {isVisible ? <FiEye size={16} /> : <FiEyeOff size={16} />}
+            </button>
+          )}
+          <button onClick={() => onRemove && onRemove(item.id)} className="text-rose-600 hover:text-rose-700 p-2" title="Remove">
+            <FiX size={18} />
+          </button>
+        </div>
         {children}
       </div>
     );

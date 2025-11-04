@@ -1,65 +1,361 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import { usePDF } from "react-to-pdf";
 import {
   Box,
-  Container,
-  Grid,
-  TextField,
   Button,
-  Paper,
   Typography,
   AppBar,
   Toolbar,
-  Switch,
-  FormControlLabel,
   Stack,
-  Chip,
+  Snackbar,
+  Alert,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
-  Link as LinkIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
 } from "@mui/icons-material";
-import RichTextEditor from "../components/RichTextEditor";
-import FormSection from "../components/FormSection";
+import { useParams } from "react-router-dom";
+import {
+  saveCoverLetterContent,
+  saveCoverLetterLayout,
+  getCoverLetterContent,
+  getCoverLetterLayout,
+  getResumeContent,
+} from "../firebase/firestore";
+import CoverLetterEditor from "../components/coverletter/CoverLetterEditor";
+import CoverLetterPreview from "../components/coverletter/CoverLetterPreview";
+import AIGenerationDialog from "../components/coverletter/AIGenerationDialog";
+import AIGeneratingOverlay from "../components/AIGeneratingOverlay";
+import {
+  useCoverLetterState,
+  useCoverLetterLocalStorage,
+  DEFAULT_FORM_DATA,
+} from "../hooks/useCoverLetterState";
+import { useFontLoading } from "../hooks/useFontLoading";
 
 const CoverLetter = () => {
   const [syncWithResume, setSyncWithResume] = useState(true);
-  const [formData, setFormData] = useState({
-    fullName: "",
-    title: "",
-    email: "",
-    phone: "",
-    location: "",
-    linkedin: "",
-    github: "",
-    date: "",
-    recipientName: "",
-    company: "",
-    companyLocation: "",
-    letterContent: "<p></p>",
-    signatureImage: null,
-    signatureName: "",
-    signaturePlace: "",
-    signatureDate: ""
-  });
-
+  const params = useParams();
   const pdfPreviewRef = useRef(null);
-  const signatureInputRef = useRef(null);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  // Use custom hooks for state management
+  const {
+    formData,
+    setFormData,
+    spacingConfig,
+    setSpacingConfig,
+    personalConfig,
+    setPersonalConfig,
+    selectedFont,
+    setSelectedFont,
+    layoutConfig,
+    setLayoutConfig,
+    activeTab,
+    setActiveTab,
+    activeFontCategory,
+    setActiveFontCategory,
+    handleInputChange,
+    handleSignatureUpload,
+    computeSignature,
+  } = useCoverLetterState();
+
+  const { saveDraftToLocal, loadDraftFromLocal } = useCoverLetterLocalStorage();
+  const { fontStatus, fontReadyToggle, loadGoogleFont } =
+    useFontLoading(selectedFont);
+
+  // Firestore state for cover letter
+  const [firestoreDocId, setFirestoreDocId] = useState(null);
+  const [loadDocId, setLoadDocId] = useState("");
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+
+  const autosaveTimerRef = useRef(null);
+  const pendingSaveRef = useRef({});
+  const lastSavedSignatureRef = useRef(null);
+
+  const showSnackbar = (severity, text, timeout = 3000) => {
+    setSnackbarMsg(text);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+    if (timeout > 0) {
+      setTimeout(() => setSnackbarOpen(false), timeout);
+    }
+  };
+
+  // Save cover letter to Firestore (content and layout in separate collections)
+  const saveToFirestore = async ({
+    force = false,
+    skipConflictCheck = false,
+  } = {}) => {
+    console.log(
+      "[saveToFirestore] Called with force:",
+      force,
+      "skipConflictCheck:",
+      skipConflictCheck,
+      "firestoreDocId:",
+      firestoreDocId
+    );
+    if (!firestoreDocId) {
+      showSnackbar("info", "Creating new cover letter...");
+      try {
+        const layout = {
+          spacingConfig,
+          personalConfig,
+          selectedFont,
+          layoutConfig,
+        };
+        console.log(
+          "[CoverLetter] Creating new document with formData:",
+          formData
+        );
+        const contentId = await saveCoverLetterContent(null, formData);
+        console.log("[CoverLetter] Content saved with ID:", contentId);
+        await saveCoverLetterLayout(contentId, layout);
+        console.log("[CoverLetter] Layout saved for ID:", contentId);
+        setFirestoreDocId(contentId);
+        setLoadDocId(contentId);
+        showSnackbar("success", "Cover letter created and saved");
+        lastSavedSignatureRef.current = computeSignature(formData, layout);
+      } catch (err) {
+        console.error("Failed to create cover letter:", err);
+        showSnackbar("error", `Failed to create cover letter: ${err.message}`);
+      }
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      // Three-way merge: detect conflicts
+      if (!skipConflictCheck && !force) {
+        const remoteContent = await getCoverLetterContent(firestoreDocId);
+        const remoteLayout = await getCoverLetterLayout(firestoreDocId);
+        const remoteSignature = computeSignature(remoteContent, remoteLayout);
+        const localSignature = computeSignature(formData, {
+          spacingConfig,
+          personalConfig,
+          selectedFont,
+          layoutConfig,
+        });
+
+        if (
+          remoteSignature !== lastSavedSignatureRef.current &&
+          localSignature !== lastSavedSignatureRef.current
+        ) {
+          // Both sides have changed — conflict!
+          pendingSaveRef.current = {
+            formData,
+            layout: {
+              spacingConfig,
+              personalConfig,
+              selectedFont,
+              layoutConfig,
+            },
+          };
+          setConflictDialogOpen(true);
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const layout = {
+        spacingConfig,
+        personalConfig,
+        selectedFont,
+        layoutConfig,
+      };
+      console.log("[CoverLetter] Saving to existing doc:", firestoreDocId);
+      await saveCoverLetterContent(firestoreDocId, formData);
+      await saveCoverLetterLayout(firestoreDocId, layout);
+
+      lastSavedSignatureRef.current = computeSignature(formData, layout);
+      setLastSavedAt(new Date().toISOString());
+      showSnackbar("success", "Cover letter saved");
+    } catch (err) {
+      console.error("Failed to save cover letter:", err);
+      showSnackbar("error", `Failed to save cover letter: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load cover letter content & layout from Firestore by doc id
+  const loadFromFirestore = async (docId) => {
+    try {
+      setIsSaving(true);
+      const content = await getCoverLetterContent(docId);
+      const layout = await getCoverLetterLayout(docId);
+
+      if (!content) {
+        showSnackbar("error", "Cover letter not found");
+        setIsSaving(false);
+        return;
+      }
+
+      setFormData(content);
+      if (layout) {
+        if (layout.spacingConfig) setSpacingConfig(layout.spacingConfig);
+        if (layout.personalConfig) setPersonalConfig(layout.personalConfig);
+        if (layout.selectedFont) setSelectedFont(layout.selectedFont);
+        if (layout.layoutConfig) setLayoutConfig(layout.layoutConfig);
+      }
+
+      setFirestoreDocId(docId);
+      lastSavedSignatureRef.current = computeSignature(content, layout);
+      setLastSavedAt(new Date().toISOString());
+      showSnackbar("success", "Cover letter loaded");
+    } catch (err) {
+      console.error("Failed to load cover letter:", err);
+      showSnackbar("error", "Failed to load cover letter");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Editor pane (left) and Preview pane (right) as small inner components
+  const EditorPane = () => (
+    <CoverLetterEditor
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      activeFontCategory={activeFontCategory}
+      setActiveFontCategory={setActiveFontCategory}
+      layoutConfig={layoutConfig}
+      setLayoutConfig={setLayoutConfig}
+      selectedFont={selectedFont}
+      setSelectedFont={setSelectedFont}
+      loadGoogleFont={loadGoogleFont}
+      fontStatus={fontStatus}
+      personalConfig={personalConfig}
+      setPersonalConfig={setPersonalConfig}
+      spacingConfig={spacingConfig}
+      setSpacingConfig={setSpacingConfig}
+      formData={formData}
+      setFormData={setFormData}
+      syncWithResume={syncWithResume}
+      setSyncWithResume={setSyncWithResume}
+      handleInputChange={handleInputChange}
+    />
+  );
+
+  const PreviewPane = () => (
+    <CoverLetterPreview
+      formData={formData}
+      spacingConfig={spacingConfig}
+      selectedFont={selectedFont}
+      personalConfig={personalConfig}
+      combinedPreviewRef={combinedPreviewRef}
+    />
+  );
+
+  useEffect(() => {
+    // Don't load draft - start with fresh defaults
+    // Draft loading can be added optionally in the future with user confirmation
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Initialize Firestore document on first mount if user is logged in and no docId in route
+  useEffect(() => {
+    if (!firestoreDocId && !params?.docId) {
+      const initializeDoc = async () => {
+        try {
+          const { getAuth } = await import("firebase/auth");
+          const auth = getAuth();
+          if (!auth.currentUser) {
+            return;
+          }
+
+          const layout = {
+            spacingConfig,
+            personalConfig,
+            selectedFont,
+            layoutConfig,
+          };
+          // Save with empty/default form data on first creation
+          const contentId = await saveCoverLetterContent(null, DEFAULT_FORM_DATA);
+          await saveCoverLetterLayout(contentId, layout);
+          setFirestoreDocId(contentId);
+          setLoadDocId(contentId);
+          lastSavedSignatureRef.current = computeSignature(DEFAULT_FORM_DATA, layout);
+        } catch (err) {
+          console.error("[CoverLetter] Init failed:", err);
+        }
+      };
+      initializeDoc();
+    }
+  }, [params?.docId, firestoreDocId]);
+  useEffect(() => {
+    setLoadDocId(firestoreDocId || "");
+  }, [firestoreDocId]);
+
+  // If the route contains a docId param, auto-load it
+  useEffect(() => {
+    if (params?.docId && params.docId !== firestoreDocId) {
+      loadFromFirestore(params.docId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.docId]);
+
+  // Autosave debounced changes to local or Firestore
+  useEffect(() => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      if (firestoreDocId) {
+        saveToFirestore({ skipConflictCheck: true });
+      } else {
+        const result = saveDraftToLocal(formData);
+        if (result.success) {
+          setLastSavedAt(new Date().toISOString());
+        }
+      }
+    }, 1000);
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [
+    formData,
+    spacingConfig,
+    personalConfig,
+    selectedFont,
+    layoutConfig,
+    firestoreDocId,
+  ]);
+
+  const formatLastSaved = (iso) => {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString();
+    } catch {
+      return "";
+    }
+  };
 
   const sanitizedFilename = useMemo(() => {
     const trimmed = formData.fullName.trim();
-    return trimmed ? trimmed.replace(/[^a-z0-9]+/gi, "_").toLowerCase() : "cover_letter";
+    return trimmed
+      ? trimmed.replace(/[^a-z0-9]+/gi, "_").toLowerCase()
+      : "cover_letter";
   }, [formData.fullName]);
 
   const { toPDF, targetRef } = usePDF({
     filename: `${sanitizedFilename}_styled.pdf`,
-    resolution: 2
+    resolution: 2,
   });
 
   const combinedPreviewRef = useCallback(
@@ -83,7 +379,10 @@ const CoverLetter = () => {
       });
       if (paras.length > 0) return paras;
       const text = el.innerText || "";
-      return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      return text
+        .split(/\n+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
     } catch {
       return (formData.letterContent || "").split(/\n+/).filter(Boolean);
     }
@@ -98,21 +397,6 @@ const CoverLetter = () => {
   const secondaryLine = useMemo(() => {
     return [formData.linkedin, formData.github].filter(Boolean).join(" | ");
   }, [formData.github, formData.linkedin]);
-
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSignatureUpload = (event) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setFormData((prev) => ({ ...prev, signatureImage: e.target.result }));
-    };
-    reader.readAsDataURL(file);
-  };
 
   const downloadATSOptimizedPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -131,8 +415,13 @@ const CoverLetter = () => {
     y += 18;
 
     doc.setFontSize(10);
-    const contactInfo = [contactLine, secondaryLine].filter(Boolean).join(" | ");
-    doc.text(contactInfo, pageWidth / 2, y, { align: "center", maxWidth: pageWidth - margin * 2 });
+    const contactInfo = [contactLine, secondaryLine]
+      .filter(Boolean)
+      .join(" | ");
+    doc.text(contactInfo, pageWidth / 2, y, {
+      align: "center",
+      maxWidth: pageWidth - margin * 2,
+    });
     y += 28;
 
     const addLine = (text) => {
@@ -162,11 +451,78 @@ const CoverLetter = () => {
     doc.save(`${sanitizedFilename}_ats.pdf`);
   };
 
+  const handleAIGenerate = async ({ jobUrl, resumeId }) => {
+    setAiGenerating(true);
+    try {
+      showSnackbar("info", "Generating your cover letter with AI...");
+      
+      // Fetch resume data from Firestore
+      const resumeContent = await getResumeContent(resumeId);
+      
+      if (!resumeContent) {
+        throw new Error("Failed to fetch resume data");
+      }
+
+      // Call the API endpoint with the correct format
+      const response = await fetch("http://localhost:5678/webhook-test/cover-letter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          resume: resumeContent,
+          jobUrl: jobUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.output) {
+        throw new Error("Invalid response from API");
+      }
+
+      // Update the form data with the generated content
+      const generatedData = data.output;
+      setFormData((prev) => ({
+        ...prev,
+        fullName: generatedData.fullName || prev.fullName,
+        title: generatedData.title || prev.title,
+        email: generatedData.email || prev.email,
+        phone: generatedData.phone || prev.phone,
+        location: generatedData.location || prev.location,
+        linkedin: generatedData.linkedin || prev.linkedin,
+        github: generatedData.github || prev.github,
+        date: generatedData.date || prev.date,
+        recipientName: generatedData.recipientName || prev.recipientName,
+        company: generatedData.company || prev.company,
+        companyLocation: generatedData.companyLocation || prev.companyLocation,
+        letterContent: generatedData.letterContent || prev.letterContent,
+      }));
+
+      showSnackbar("success", "✨ Cover letter generated successfully!");
+    } catch (err) {
+      console.error("AI generation failed:", err);
+      showSnackbar("error", `Failed to generate cover letter: ${err.message}`);
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        height: "100vh",
+        bgcolor: "background.default",
+        overflow: "hidden",
+      }}
+    >
       <AppBar position="fixed" color="inherit" elevation={1}>
         <Toolbar>
-          <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+          <Avatar sx={{ bgcolor: "primary.main", mr: 2 }}>
             <DescriptionIcon />
           </Avatar>
           <Box sx={{ flexGrow: 1 }}>
@@ -178,6 +534,22 @@ const CoverLetter = () => {
             </Typography>
           </Box>
           <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setAiDialogOpen(true)}
+              disabled={aiGenerating}
+            >
+              ✨ Generate with AI
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => saveToFirestore()}
+              disabled={isSaving}
+            >
+              Save
+            </Button>
             <Button
               variant="outlined"
               startIcon={<VisibilityIcon />}
@@ -193,322 +565,86 @@ const CoverLetter = () => {
               ATS-friendly PDF
             </Button>
           </Stack>
+          <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
+            <Typography variant="caption" color="text.secondary">
+              {isSaving
+                ? "Saving..."
+                : lastSavedAt
+                ? `Saved ${formatLastSaved(lastSavedAt)}`
+                : ""}
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
-
       <Toolbar /> {/* Spacer for fixed AppBar */}
+      <main className="flex-1 w-full" style={{ height: "calc(100vh - 64px)" }}>
+        <div
+          className="mx-auto flex w-full gap-6 px-6 md:flex-row items-stretch justify-center pt-4"
+          style={{ height: "100%" }}
+        >
+          {/* Left Editor Column - equal width */}
+          <div className="w-full h-full flex flex-col">{EditorPane()}</div>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Grid container spacing={3}>
-          {/* Left Column - Editor */}
-          <Grid item xs={12} md={6}>
-            <Paper elevation={3} sx={{ p: 4, height: 'calc(100vh - 120px)', overflow: 'auto' }}>
-              {/* Personal Information */}
-              <Box sx={{ mb: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                  <Box>
-                    <Typography variant="h6" gutterBottom>
-                      Personalise your cover letter
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Toggle sync to pull details from your latest resume or edit manually
-                    </Typography>
-                  </Box>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={syncWithResume}
-                        onChange={(e) => setSyncWithResume(e.target.checked)}
-                        color="primary"
-                      />
-                    }
-                    label="Sync with resume"
-                  />
-                </Box>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Full Name"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Professional Title"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Location"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="LinkedIn"
-                      name="linkedin"
-                      value={formData.linkedin}
-                      onChange={handleInputChange}
-                      InputProps={{
-                        startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.disabled' }} />,
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="GitHub"
-                      name="github"
-                      value={formData.github}
-                      onChange={handleInputChange}
-                      InputProps={{
-                        startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.disabled' }} />,
-                      }}
-                    />
-                  </Grid>
-                </Grid>
-              </Box>
-
-              {/* Letter Details */}
-              <FormSection title="Letter details">
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Recipient Name"
-                      name="recipientName"
-                      value={formData.recipientName}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Company"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Company Location"
-                      name="companyLocation"
-                      value={formData.companyLocation}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                </Grid>
-              </FormSection>
-
-              {/* Letter Content */}
-              <FormSection title="Letter content">
-                <RichTextEditor
-                  value={formData.letterContent}
-                  onChange={(html) => setFormData(prev => ({ ...prev, letterContent: html }))}
-                  placeholder="Write your cover letter here..."
-                  minHeight={200}
-                />
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Use the toolbar to format text. The preview and PDFs will render paragraph breaks and formatting.
-                </Typography>
-              </FormSection>
-
-              {/* Signature */}
-              <FormSection title="Signature">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <Paper
-                    variant="outlined"
-                    sx={{
-                      width: 200,
-                      height: 80,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: 'background.default',
-                    }}
-                  >
-                    {formData.signatureImage ? (
-                      <img src={formData.signatureImage} alt="signature" style={{ maxHeight: 60 }} />
-                    ) : (
-                      <Typography variant="body2" color="text.disabled">
-                        No signature uploaded
-                      </Typography>
-                    )}
-                  </Paper>
-                  <Stack spacing={1}>
-                    <Button
-                      size="small"
-                      startIcon={<EditIcon />}
-                      onClick={() => signatureInputRef.current?.click()}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="small"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, signatureImage: null, signatureName: "", signaturePlace: "", signatureDate: "" }));
-                        if (signatureInputRef.current) signatureInputRef.current.value = null;
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                  <input
-                    ref={signatureInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSignatureUpload}
-                    style={{ display: 'none' }}
-                  />
-                </Box>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Full name"
-                      name="signatureName"
-                      value={formData.signatureName}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Place"
-                      name="signaturePlace"
-                      value={formData.signaturePlace}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      fullWidth
-                      label="Date"
-                      name="signatureDate"
-                      value={formData.signatureDate}
-                      onChange={handleInputChange}
-                    />
-                  </Grid>
-                </Grid>
-              </FormSection>
-            </Paper>
-          </Grid>
-
-          {/* Right Column - Preview */}
-          <Grid item xs={12} md={6}>
-            <Paper
-              ref={combinedPreviewRef}
-              elevation={3}
-              sx={{ p: 5, height: 'calc(100vh - 120px)', overflow: 'auto', position: 'relative' }}
-            >
-              <Chip
-                label="Live preview"
-                color="primary"
-                size="small"
-                sx={{ position: 'absolute', top: 16, right: 16 }}
-              />
-
-              {/* Header */}
-              <Box sx={{ textAlign: 'center', borderBottom: 1, borderColor: 'divider', pb: 3, mb: 3 }}>
-                <Typography variant="h4" fontWeight={600} gutterBottom>
-                  {formData.fullName || "Your Name"}
-                </Typography>
-                <Typography variant="subtitle1" color="primary" gutterBottom>
-                  {formData.title || "Professional Title"}
-                </Typography>
-                {contactLine && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    {contactLine}
-                  </Typography>
-                )}
-                {secondaryLine && (
-                  <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
-                    {secondaryLine}
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Letter Body */}
-              <Box sx={{ typography: 'body2', color: 'text.primary' }}>
-                {formData.date && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{formData.date}</Typography>}
-                {formData.recipientName && <Typography variant="body2">{formData.recipientName}</Typography>}
-                {formData.company && <Typography variant="body2">{formData.company}</Typography>}
-                {formData.companyLocation && <Typography variant="body2" sx={{ mb: 3 }}>{formData.companyLocation}</Typography>}
-
-                <Typography variant="body2" sx={{ mb: 2 }}>
-                  Dear {formData.recipientName || "Hiring Manager"},
-                </Typography>
-
-                <Box
-                  sx={{ mb: 3 }}
-                  dangerouslySetInnerHTML={{ __html: formData.letterContent }}
-                />
-
-                <Box sx={{ mt: 4 }}>
-                  <Typography variant="body2">Kind regards,</Typography>
-                  {formData.signatureImage && (
-                    <Box sx={{ my: 2 }}>
-                      <img src={formData.signatureImage} alt="signature" style={{ height: 60 }} />
-                    </Box>
-                  )}
-                  <Typography variant="body2" fontWeight={600} sx={{ mt: formData.signatureImage ? 0 : 2 }}>
-                    {formData.signatureName || formData.fullName}
-                  </Typography>
-                  {(formData.signaturePlace || formData.signatureDate) && (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      {[formData.signaturePlace, formData.signatureDate].filter(Boolean).join(' • ')}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-      </Container>
+          {/* Right Preview Column - equal width */}
+          <div className="w-full h-full flex flex-col">{PreviewPane()}</div>
+        </div>
+      </main>
+      {/* Conflict dialog */}
+      <Dialog
+        open={conflictDialogOpen}
+        onClose={() => setConflictDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Conflicting Changes</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            Both your local changes and remote changes have been made. How would
+            you like to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConflictDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="outlined"
+            onClick={async () => {
+              setConflictDialogOpen(false);
+              await loadFromFirestore(firestoreDocId);
+            }}
+          >
+            Use Remote
+          </Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              setConflictDialogOpen(false);
+              await saveToFirestore({ force: true });
+            }}
+          >
+            Use Local
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMsg}
+        </Alert>
+      </Snackbar>
+      <AIGenerationDialog
+        open={aiDialogOpen}
+        onClose={() => setAiDialogOpen(false)}
+        onGenerate={handleAIGenerate}
+      />
+      <AIGeneratingOverlay open={aiGenerating} />
     </Box>
   );
 };

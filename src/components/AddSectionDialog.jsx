@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogContent, Card, CardContent, Typography, Box,
 import CloseIcon from "@mui/icons-material/Close";
 
 const AddSectionDialog = ({ open, onClose, availableSections, sections, addSection }) => (
-  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+  <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
     <DialogTitle sx={{ m: 0, p: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <Typography variant="h5" fontWeight={700} color="text.primary">Add content</Typography>
       <IconButton aria-label="close" onClick={onClose} sx={{ color: "text.secondary" }}>
@@ -11,7 +11,7 @@ const AddSectionDialog = ({ open, onClose, availableSections, sections, addSecti
       </IconButton>
     </DialogTitle>
     <DialogContent sx={{ p: 3 }}>
-      <div className="flex flex-wrap justify-between gap-4">
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 2 }}>
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isAdded = sections.find((s) => s.id === section.id && s.visible);
@@ -28,7 +28,6 @@ const AddSectionDialog = ({ open, onClose, availableSections, sections, addSecti
                 },
                 border: "1px solid",
                 borderColor: "divider",
-                width: "32%",
                 display: "flex",
                 flexDirection: "column",
               }}
@@ -50,7 +49,7 @@ const AddSectionDialog = ({ open, onClose, availableSections, sections, addSecti
             </Card>
           );
         })}
-      </div>
+      </Box>
     </DialogContent>
   </Dialog>
 );

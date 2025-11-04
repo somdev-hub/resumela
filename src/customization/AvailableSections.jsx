@@ -84,6 +84,20 @@ export const availableSections = [
       description:
         "If you volunteer or participate in a good cause, why not state it?",
     },
+      {
+        id: "positions",
+        name: "Position of responsibility",
+        icon: FaUserTie,
+        description:
+          "Held leadership or responsibility positions (club lead, coordinator, class rep).",
+      },
+      {
+        id: "activities",
+        name: "Activities",
+        icon: FaList,
+        description:
+          "Extracurricular activities, events or regular engagements you participated in.",
+      },
     {
       id: "publications",
       name: "Publications",

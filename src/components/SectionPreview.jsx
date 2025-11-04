@@ -32,7 +32,9 @@ const SectionPreview = ({ section, spacingConfig }) => {
         {section.name.toUpperCase()}
       </h2>
       <div>
-        {section.items.map((item) => {
+        {section.items
+          .filter((item) => Object.prototype.hasOwnProperty.call(item, "visible") ? !!item.visible : true)
+          .map((item) => {
           // Special rendering for skills: show "Category — skill1 | skill2 | ..."
           const sectionId = (section.id || "").toString().toLowerCase();
           const sectionName = (section.name || "").toString().toLowerCase();

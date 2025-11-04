@@ -7,6 +7,7 @@ import {
   addDoc,
   collection,
   getDoc,
+  getDocs,
   serverTimestamp,
 } from "firebase/firestore";
 
@@ -137,6 +138,7 @@ export async function getResumeContent(docId) {
   const snap = await getDoc(doc(db, "resume_content", docId));
   const data = snap.exists() ? snap.data() : null;
   if (data) cacheSet("content", docId, data);
+  console.log(data)
   return data;
 }
 
@@ -153,10 +155,126 @@ export async function getResumeLayout(docId) {
   return data;
 }
 
+// Save cover letter content (personal data + letter content) into `coverletter_content` collection.
+export async function saveCoverLetterContent(docId, content) {
+  const db = initFirestore();
+  try {
+    if (docId) {
+      console.log("[saveCoverLetterContent] Updating doc:", docId);
+      await setDoc(doc(db, "coverletter_content", docId), {
+        ...content,
+        updatedAt: serverTimestamp(),
+      });
+      try {
+        cacheSet("coverletter_content", docId, content);
+      } catch {
+        void 0;
+      }
+      return docId;
+    }
+    console.log("[saveCoverLetterContent] Creating new document");
+    const ref = await addDoc(collection(db, "coverletter_content"), {
+      ...content,
+      createdAt: serverTimestamp(),
+    });
+    console.log("[saveCoverLetterContent] Created with ID:", ref.id);
+    try {
+      cacheSet("coverletter_content", ref.id, content);
+    } catch {
+      void 0;
+    }
+    return ref.id;
+  } catch (err) {
+    console.error("[saveCoverLetterContent] Error:", err);
+    throw err;
+  }
+}
+
+// Save cover letter layout (layoutConfig, spacingConfig, personalConfig, selectedFont)
+export async function saveCoverLetterLayout(docId, layout) {
+  const db = initFirestore();
+  try {
+    if (docId) {
+      console.log("[saveCoverLetterLayout] Updating layout for doc:", docId);
+      await setDoc(doc(db, "coverletter_layout", docId), {
+        ...layout,
+        updatedAt: serverTimestamp(),
+      });
+      try {
+        cacheSet("coverletter_layout", docId, layout);
+      } catch {
+        void 0;
+      }
+      return docId;
+    }
+    console.log("[saveCoverLetterLayout] Creating new layout document");
+    const ref = await addDoc(collection(db, "coverletter_layout"), {
+      ...layout,
+      createdAt: serverTimestamp(),
+    });
+    console.log("[saveCoverLetterLayout] Created with ID:", ref.id);
+    try {
+      cacheSet("coverletter_layout", ref.id, layout);
+    } catch {
+      void 0;
+    }
+    return ref.id;
+  } catch (err) {
+    console.error("[saveCoverLetterLayout] Error:", err);
+    throw err;
+  }
+}
+
+export async function getCoverLetterContent(docId) {
+  const db = initFirestore();
+  const cached = cacheGet("coverletter_content", docId);
+  if (cached) return cached;
+
+  const snap = await getDoc(doc(db, "coverletter_content", docId));
+  const data = snap.exists() ? snap.data() : null;
+  if (data) cacheSet("coverletter_content", docId, data);
+  return data;
+}
+
+export async function getCoverLetterLayout(docId) {
+  const db = initFirestore();
+  const cached = cacheGet("coverletter_layout", docId);
+  if (cached) return cached;
+
+  const snap = await getDoc(doc(db, "coverletter_layout", docId));
+  const data = snap.exists() ? snap.data() : null;
+  if (data) cacheSet("coverletter_layout", docId, data);
+  return data;
+}
+
+export async function getAllResumes() {
+  const db = initFirestore();
+  try {
+    const resumeSnaps = await getDocs(collection(db, "resume_content"));
+    const resumes = [];
+    resumeSnaps.forEach((snap) => {
+      resumes.push({
+        id: snap.id,
+        title: snap.data().formData?.fullName || "Untitled Resume",
+        ...snap.data(),
+      });
+    });
+    return resumes;
+  } catch (err) {
+    console.error("[getAllResumes] Error:", err);
+    return [];
+  }
+}
+
 export default {
   initFirestore,
   saveResumeContent,
   saveResumeLayout,
   getResumeContent,
   getResumeLayout,
+  saveCoverLetterContent,
+  saveCoverLetterLayout,
+  getCoverLetterContent,
+  getCoverLetterLayout,
+  getAllResumes,
 };

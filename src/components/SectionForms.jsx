@@ -640,7 +640,7 @@ const GenericForm = ({
   onOpenUrlDialog,
 }) => (
   <SectionCard title={`${sectionName} Entry`} onRemove={onRemove}>
-    <Grid item xs={12}>
+    <Grid item xs={12} marginBottom={2}>
       <TextField
         fullWidth
         label="Title"
@@ -666,6 +666,65 @@ const GenericForm = ({
             </InputAdornment>
           ),
         }}
+      />
+    </Grid>
+
+    <Grid item xs={12} marginBottom={2}>
+      <TextField
+        fullWidth
+        label="Subtitle"
+        value={item.data.subtitle || ""}
+        onChange={(e) =>
+          onUpdate(sectionId, item.id, "subtitle", e.target.value)
+        }
+      />
+    </Grid>
+    <Grid container spacing={2}>
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="Start Date (e.g., 2020)"
+          value={item.data.startDate || ""}
+          onChange={(e) => {
+            const start = e.target.value;
+            const end = item.data.endDate || "";
+            onUpdate(sectionId, item.id, "startDate", start);
+            onUpdate(
+              sectionId,
+              item.id,
+              "date",
+              end ? `${start} - ${end}` : start
+            );
+          }}
+        />
+      </Grid>
+      <Grid item xs={12} sm={6}>
+        <TextField
+          fullWidth
+          label="End Date (e.g., 2024 or Present)"
+          value={item.data.endDate || ""}
+          onChange={(e) => {
+            const end = e.target.value;
+            const start = item.data.startDate || "";
+            onUpdate(sectionId, item.id, "endDate", end);
+            onUpdate(
+              sectionId,
+              item.id,
+              "date",
+              start ? `${start} - ${end}` : end
+            );
+          }}
+        />
+      </Grid>
+    </Grid>
+    <Grid item xs={12} sm={6} marginTop={2}>
+      <TextField
+        fullWidth
+        label="Location"
+        value={item.data.location || ""}
+        onChange={(e) =>
+          onUpdate(sectionId, item.id, "location", e.target.value)
+        }
       />
     </Grid>
 
@@ -700,7 +759,8 @@ export const renderSectionForm = (
   onToggleCollapsed,
   onOpenUrlDialog,
   sensors,
-  handleDragEnd
+  handleDragEnd,
+  onToggleVisibility
 ) => {
   const onRemoveLocal = (itemId) => onRemove(section.id, itemId);
 
@@ -735,6 +795,7 @@ export const renderSectionForm = (
             section={section}
             onToggleCollapsed={onToggleCollapsed}
             onRemove={onRemoveLocal}
+            onToggleVisibility={onToggleVisibility}
           >
             <FormComponent
               item={item}

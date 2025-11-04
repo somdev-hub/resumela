@@ -14,6 +14,7 @@ import {
 
 const RichTextEditor = ({ 
   initialContent = '', 
+  value = '',
   onChange = () => {}, 
   placeholder = 'Start typing...',  
   className = ''
@@ -22,10 +23,14 @@ const RichTextEditor = ({
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
-    if (editorRef.current && initialContent && !editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = initialContent;
+    if (editorRef.current) {
+      // Use value prop if provided, otherwise use initialContent
+      const contentToSet = value || initialContent;
+      if (contentToSet && editorRef.current.innerHTML !== contentToSet) {
+        editorRef.current.innerHTML = contentToSet;
+      }
     }
-  }, [initialContent]);
+  }, [value, initialContent]);
 
   const execCommand = (command, value = null) => {
     document.execCommand(command, false, value);

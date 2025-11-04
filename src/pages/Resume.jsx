@@ -11,7 +11,7 @@ import ReactDOM from "react-dom/client";
 // Map to reuse a React root for measurement containers to avoid createRoot() being called multiple times
 const measurementRoots = new WeakMap();
 // pdf generation is handled server-side; client-side html2canvas/jsPDF removed
-import { FiPlus } from "react-icons/fi";
+import { FiPlus, FiChevronDown, FiChevronUp, FiEdit2, FiCheck, FiX } from "react-icons/fi";
 import MultiPageResume from "../components/MultiPageResume";
 import {
   KeyboardSensor,
@@ -592,6 +592,9 @@ const Resume = () => {
     });
   };
 
+  // console.log(resume);
+  
+
   // Save resume to Firestore (content and layout in separate collections)
   // options: force - bypass conflict check; skipConflictCheck - used by autosave to avoid prompting user
   const saveToFirestore = async ({
@@ -927,6 +930,8 @@ const Resume = () => {
     showSnackbar("info", "Loading...", 0);
     try {
       const content = await firestore.getResumeContent(docId);
+      console.log(content);
+      
       const layout = await firestore.getResumeLayout(docId);
 
       if (!content && !layout) {
@@ -1019,14 +1024,7 @@ const Resume = () => {
     setShowAddSection(false);
   };
 
-  const removeSection = (sectionId) => {
-    setResume((prev) => ({
-      ...prev,
-      sections: prev.sections.map((s) =>
-        s.id === sectionId ? { ...s, visible: false } : s
-      ),
-    }));
-  };
+  // sections are removed implicitly when they have no items; explicit removeSection function removed
 
   const addItemToSection = (sectionId) => {
     const newItemId = Date.now();
@@ -1054,18 +1052,18 @@ const Resume = () => {
   };
 
   const removeItemFromSection = (sectionId, itemId) => {
-    setResume((prev) => ({
-      ...prev,
-      sections: prev.sections.map((section) => {
-        if (section.id === sectionId) {
-          return {
-            ...section,
-            items: section.items.filter((item) => item.id !== itemId),
-          };
+    setResume((prev) => {
+      const newSections = prev.sections.map((section) => {
+        if (section.id !== sectionId) return section;
+        const newItems = section.items.filter((item) => item.id !== itemId);
+        // If no items remain, mark section as not visible (remove it)
+        if (!newItems || newItems.length === 0) {
+          return { ...section, items: [], visible: false };
         }
-        return section;
-      }),
-    }));
+        return { ...section, items: newItems };
+      });
+      return { ...prev, sections: newSections };
+    });
   };
 
   const updateSectionItem = (sectionId, itemId, field, value) => {
@@ -1110,6 +1108,69 @@ const Resume = () => {
         return section;
       }),
     }));
+  };
+
+  const toggleItemVisibility = (sectionId, itemId) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((section) => {
+        if (section.id === sectionId) {
+          return {
+            ...section,
+            items: section.items.map((item) =>
+              item.id === itemId
+                ? { ...item, visible: Object.prototype.hasOwnProperty.call(item, "visible") ? !item.visible : false }
+                : item
+            ),
+          };
+        }
+        return section;
+      }),
+    }));
+    try {
+      lastEditsRef.current.set(`sections.${sectionId}.items.${itemId}.visible`, Date.now());
+    } catch (e) {}
+  };
+
+  // Inline edit state for section title
+  const [editingSectionId, setEditingSectionId] = useState(null);
+  const [editingSectionName, setEditingSectionName] = useState("");
+
+  const startEditSection = (section) => {
+    setEditingSectionId(section.id);
+    setEditingSectionName(section.name || "");
+  };
+
+  const cancelEditSection = () => {
+    setEditingSectionId(null);
+    setEditingSectionName("");
+  };
+
+  const saveSectionName = (sectionId) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId ? { ...s, name: editingSectionName } : s
+      ),
+    }));
+    try {
+      lastEditsRef.current.set(`sections.${sectionId}.name`, Date.now());
+    } catch (e) {}
+    cancelEditSection();
+  };
+
+  const toggleSectionCollapsed = (sectionId) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? { ...s, collapsed: Object.prototype.hasOwnProperty.call(s, "collapsed") ? !s.collapsed : true }
+          : s
+      ),
+    }));
+    try {
+      lastEditsRef.current.set(`sections.${sectionId}.collapsed`, Date.now());
+    } catch (e) {}
   };
 
   const personalFields = [
@@ -1853,33 +1914,78 @@ const Resume = () => {
                                     {section.name}
                                   </h3>
                                 </div>
-                                <button
-                                  onClick={() => removeSection(section.id)}
-                                  className="text-rose-600 hover:text-rose-700 text-sm"
-                                >
-                                  Remove Section
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => toggleSectionCollapsed(section.id)}
+                                    className="text-slate-600 hover:text-slate-800 text-sm p-1"
+                                    title={section.collapsed ? "Expand section" : "Collapse section"}
+                                  >
+                                    {section.collapsed ? (
+                                      <FiChevronDown size={18} />
+                                    ) : (
+                                      <FiChevronUp size={18} />
+                                    )}
+                                  </button>
+                                  {editingSectionId === section.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        value={editingSectionName}
+                                        onChange={(e) => setEditingSectionName(e.target.value)}
+                                        className="rounded-md border px-2 py-1 text-sm"
+                                      />
+                                      <button
+                                        onClick={() => saveSectionName(section.id)}
+                                        className="text-indigo-600 hover:text-indigo-700 p-1"
+                                        title="Save"
+                                      >
+                                        <FiCheck />
+                                      </button>
+                                      <button
+                                        onClick={cancelEditSection}
+                                        className="text-slate-500 hover:text-slate-700 p-1"
+                                        title="Cancel"
+                                      >
+                                        <FiX />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => startEditSection(section)}
+                                      className="text-slate-600 hover:text-slate-800 text-sm p-1"
+                                      title="Edit section title"
+                                    >
+                                      <FiEdit2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
 
-                              {renderSectionForm(
-                                section,
-                                updateSectionItem,
-                                removeItemFromSection,
-                                toggleItemCollapsed,
-                                openUrlDialog,
-                                sensors,
-                                handleDragEnd
-                              )}
+                              {section.collapsed ? (
+                                <div className="text-sm text-slate-500 mb-3">{(section.items || []).length} items — collapsed</div>
+                              ) : (
+                                <>
+                                  {renderSectionForm(
+                                    section,
+                                    updateSectionItem,
+                                    removeItemFromSection,
+                                    toggleItemCollapsed,
+                                    openUrlDialog,
+                                    sensors,
+                                    handleDragEnd,
+                                    toggleItemVisibility
+                                  )}
 
-                              <button
-                                onClick={() => addItemToSection(section.id)}
-                                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100"
-                              >
-                                <FiPlus /> Add{" "}
-                                {section.name === "Professional Experience"
-                                  ? "Experience"
-                                  : section.name.replace(/s$/, "")}
-                              </button>
+                                  <button
+                                    onClick={() => addItemToSection(section.id)}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100"
+                                  >
+                                    <FiPlus /> Add{" "}
+                                    {section.name === "Professional Experience"
+                                      ? "Experience"
+                                      : section.name.replace(/s$/, "")}
+                                  </button>
+                                </>
+                              )}
                             </div>
                           );
                         })}
@@ -1926,7 +2032,7 @@ const Resume = () => {
                       /* Derived sizes to create a typographic hierarchy based on the base font size */
                       .resume-preview {
                         --resume-size-name: calc(var(--resume-font-size) * 2.2);
-                        --resume-size-role: calc(var(--resume-font-size) * 1.15);
+                        --resume-size-role: calc(var(--resume-font-size) * 1.5);
                         --resume-size-section: calc(var(--resume-font-size) * 1.25);
                         --resume-size-title: calc(var(--resume-font-size) * 1.05);
                         --resume-size-subtitle: calc(var(--resume-font-size) * 1);
@@ -1940,7 +2046,7 @@ const Resume = () => {
                       .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; font-style: italic !important; color: #4B5563 !important; }
-                      .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; }
+                      .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; color:black; }
                       .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
                       /* Variant for compact entries: same as .resume-entry but no bottom spacing */
                       .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
