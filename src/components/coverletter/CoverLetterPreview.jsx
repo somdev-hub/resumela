@@ -46,9 +46,7 @@ const CoverLetterPreview = ({
           className="resume-contact-line"
           style={{
             marginTop: "0.5rem",
-            color: "#6b7280",
-            fontSize: "inherit",
-            lineHeight: "inherit",
+            color: "#4b5563",
           }}
         >
           {contactItems.map((item, i) => (
@@ -63,32 +61,14 @@ const CoverLetterPreview = ({
 
     // icon and bar styles: render with icons and pipe separators
     return (
-      <div
-        style={{
-          marginTop: "0.5rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "1rem",
-          fontSize: "inherit",
-          lineHeight: "inherit",
-          flexWrap: "wrap",
-        }}
+      <div 
+        className="mt-2 flex items-center justify-center gap-4 flex-wrap"
+        style={{ color: "#4b5563" }}
       >
         {contactItems.map((item, i) => (
-          <span
-            key={i}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              color: "#6b7280",
-            }}
-          >
-            <span style={{ display: "inline-flex", fontSize: "0.875em" }}>
-              {item.icon}
-            </span>
-            {item.value}
+          <span key={i} className="inline-flex items-center gap-2">
+            <span className="inline-flex" style={{ fontSize: "0.875em" }}>{item.icon}</span>
+            <span>{item.value}</span>
           </span>
         ))}
       </div>
@@ -129,77 +109,86 @@ const CoverLetterPreview = ({
               }}
             >
               <style>{`
-                ${
-                  selectedFont && selectedFont.css
-                    ? `@import url('https://fonts.googleapis.com/css2?family=${selectedFont.css}&display=swap');`
-                    : ""
-                }
-                
+                /* Derived sizes to create a typographic hierarchy based on the base font size */
                 .coverletter-preview {
                   --resume-size-name: calc(var(--resume-font-size) * 2.2);
                   --resume-size-role: calc(var(--resume-font-size) * 1.5);
-                  --resume-size-section: calc(var(--resume-font-size) * 1.25);
-                  --resume-size-title: calc(var(--resume-font-size) * 1.05);
-                  --resume-size-subtitle: calc(var(--resume-font-size) * 1);
                   --resume-size-body: calc(var(--resume-font-size) * 1);
                   font-size: var(--resume-size-body);
                   line-height: var(--resume-line-height);
-                  font-family: ${
-                    selectedFont.family
-                      ? `'${selectedFont.family}', ${
-                          selectedFont.category === "sans"
-                            ? "sans-serif"
-                            : selectedFont.category === "mono"
-                            ? "monospace"
-                            : "serif"
-                        }`
-                      : "inherit"
-                  } !important;
                 }
+                
+                /* Name - Highest in hierarchy */
                 .coverletter-preview h1,
                 .coverletter-preview .resume-name { 
                   font-size: var(--resume-size-name) !important; 
                   line-height: 1.05 !important;
-                  font-weight: 600 !important;
-                  margin: 0 0 0.5rem 0 !important;
+                  font-weight: 700 !important;
+                  margin: 0 0 0.25rem 0 !important;
+                  color: #000000 !important;
                 }
+                
+                /* Role/Title - Second in hierarchy */
                 .coverletter-preview h2,
                 .coverletter-preview .resume-role { 
                   font-size: var(--resume-size-role) !important; 
-                  color: #4f46e5 !important;
+                  line-height: 1.2 !important;
+                  color: #000000 !important;
                   font-style: italic !important;
-                  margin: 0.25rem 0 !important;
+                  font-weight: 400 !important;
+                  margin: 0 0 0.5rem 0 !important;
                 }
-                .coverletter-preview p {
+                
+                /* Everything else - Same base font size */
+                .coverletter-preview p,
+                .coverletter-preview span,
+                .coverletter-preview div,
+                .coverletter-preview li {
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
-                  // margin: 0.5rem 0 !important;
+                }
+                
+                .coverletter-preview p {
+                  margin: 0.5rem 0 !important;
                   color: #1f2937 !important;
                 }
+                
                 .coverletter-preview .letter-header {
                   text-align: ${personalConfig.align || "center"} !important;
                   border-bottom: 1px solid #e5e7eb;
-                  padding-bottom: 0.75rem;
-                  margin-bottom: 0.75rem;
+                  padding-bottom: 1rem;
+                  margin-bottom: 1.5rem;
                 }
+                
                 .coverletter-preview .letter-body {
                   color: #1f2937 !important;
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
                 }
+                
                 .coverletter-preview .letter-body p,
                 .coverletter-preview .letter-body span {
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
                   color: #1f2937 !important;
                 }
+                
                 .coverletter-preview .letter-body ul,
                 .coverletter-preview .letter-body ol {
                   margin: 0.75rem 0 !important;
                   padding-left: 2rem !important;
                 }
+                
                 .coverletter-preview .letter-body li {
                   margin: 0.25rem 0 !important;
+                  font-size: var(--resume-size-body) !important;
+                  line-height: var(--resume-line-height) !important;
+                  color: #1f2937 !important;
+                }
+                
+                /* Contact info consistent sizing */
+                .coverletter-preview .resume-contact-line,
+                .coverletter-preview .resume-contact-line span {
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
                 }
@@ -233,9 +222,7 @@ const CoverLetterPreview = ({
               <div className="letter-body mt-8">
                 <div className="flex justify-end mt-2">
                   {formData.date && (
-                    <p style={{ color: "#6b7280" }}>
-                      {formData.date}
-                    </p>
+                    <p style={{ color: "#6b7280" }}>{formData.date}</p>
                   )}
                 </div>
                 <div className="mb-4 my-4">

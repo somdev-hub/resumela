@@ -3,8 +3,6 @@ import { Link as LinkIcon } from "@mui/icons-material";
 
 const PersonalInfoForm = ({
   formData,
-  syncWithResume,
-  setSyncWithResume,
   handleInputChange,
 }) => {
   return (
@@ -25,16 +23,7 @@ const PersonalInfoForm = ({
             Toggle sync to pull details from your latest resume or edit manually
           </Typography>
         </Box>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={syncWithResume}
-              onChange={(e) => setSyncWithResume(e.target.checked)}
-              color="primary"
-            />
-          }
-          label="Sync with resume"
-        />
+      
       </Box>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>

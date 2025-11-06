@@ -25,7 +25,7 @@ import AddSectionDialog from "../components/AddSectionDialog";
 import RichTextEditor from "../components/RichTextEditor";
 import SectionPreview from "../components/SectionPreview";
 import { renderSectionForm } from "../components/SectionForms";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 import { availableSections } from "../customization/AvailableSections";
 import { fontsByCategory } from "../customization/Fonts";
@@ -123,6 +123,7 @@ const Resume = () => {
   // track last local edit timestamp and per-field edit timestamps to enable three-way merge
   const lastLocalChangeAtRef = useRef(null);
   const lastEditsRef = useRef(new Map()); // Map<path, timestamp>
+  const hasUserEditedRef = useRef(false); // Track if user has made any edits
 
   const showSnackbar = (severity, text, timeout = 3000) => {
     setSnackbarSeverity(severity);
@@ -257,27 +258,98 @@ const Resume = () => {
       loadGoogleFont(resume.selectedFont.css);
   }, [resume.selectedFont]);
 
-  // On mount, try to read a persisted firestore doc id
+  const params = useParams();
+  const navigate = useNavigate();
+
+  // On mount or when docId param changes, handle document loading/creation
   useEffect(() => {
-    try {
-      const id = localStorage.getItem("resume_firestore_docId");
-      if (id) {
-        setFirestoreDocId(id);
-        setLoadDocId(id);
+    const initializeDocument = async () => {
+      const urlDocId = params?.docId;
+      
+      if (!urlDocId) {
+        // No docId in URL - shouldn't happen with new flow, but handle gracefully
+        return;
       }
-    } catch (e) {}
-  }, []);
+      
+      // If we already have this docId loaded, skip
+      if (firestoreDocId === urlDocId) {
+        return;
+      }
+      
+      // Set the docId from URL
+      setFirestoreDocId(urlDocId);
+      setLoadDocId(urlDocId);
+      
+      try {
+        // Try to load existing document from Firestore
+        const content = await firestore.getResumeContent(urlDocId);
+        
+        if (content) {
+          // Document exists, load it
+          await loadFromFirestore(urlDocId);
+        } else {
+          // Document doesn't exist, create it as "Untitled Resume"
+          const initialContent = {
+            formData: {
+              fullName: "",
+              title: "",
+              email: "",
+              phone: "",
+              location: "",
+              linkedin: "",
+              github: "",
+              linkedinUrl: "",
+              githubUrl: "",
+              profile: "",
+              photoUrl: null,
+            },
+            sections: [],
+          };
+          
+          const initialLayout = {
+            layoutConfig: resume.layoutConfig,
+            spacingConfig: resume.spacingConfig,
+            personalConfig: resume.personalConfig,
+            selectedFont: resume.selectedFont,
+            sectionOrder: resume.sectionOrder,
+          };
+          
+          // Create the document in Firestore with the URL's docId
+          await firestore.saveResumeContent(urlDocId, {
+            ...initialContent,
+            title: "Untitled Resume",
+          });
+          await firestore.saveResumeLayout(urlDocId, initialLayout);
+          
+          // Update signature to prevent immediate re-save
+          lastSavedSignatureRef.current = computeSignature(resume);
+          setLastSavedAt(new Date().toISOString());
+          
+          showSnackbar("success", "New resume created", 2000);
+        }
+        
+        // Persist the docId to localStorage
+        try {
+          localStorage.setItem("resume_firestore_docId", urlDocId);
+        } catch (e) {
+          // ignore localStorage errors
+        }
+      } catch (err) {
+        console.error("Failed to initialize document:", err);
+        showSnackbar("error", "Failed to initialize resume", 3000);
+      }
+    };
+    
+    initializeDocument();
+  }, [params?.docId]);
 
   // keep loadDocId in sync when firestoreDocId changes
   useEffect(() => {
     if (firestoreDocId) setLoadDocId(firestoreDocId);
   }, [firestoreDocId]);
 
-  const params = useParams();
-
   // Autosave: debounce resume changes and save automatically
   useEffect(() => {
-    // compute signature of important parts
     let sig = null;
     try {
       sig = JSON.stringify({
@@ -299,13 +371,18 @@ const Resume = () => {
       return; // nothing changed since last save
     }
 
+    // Mark that user has made edits
+    hasUserEditedRef.current = true;
+
     // persist draft locally on every change
     saveDraftToLocal(resume);
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => {
-      // don't autosave while an explicit save/load is in progress
-      if (!isSaving) saveToFirestore({ skipConflictCheck: true });
+      // Only autosave to Firestore if we have a doc ID and not currently saving
+      if (!isSaving && firestoreDocId) {
+        saveToFirestore({ skipConflictCheck: true });
+      }
     }, 2500);
 
     return () => {
@@ -865,18 +942,16 @@ const Resume = () => {
         sectionOrder: resumeToSave.sectionOrder,
       });
 
-      // If we already have a linked doc id, reuse it for both collections for easy lookup
-      let docId = firestoreDocId;
+      // Use the existing docId from URL/state
+      const docId = firestoreDocId;
       if (!docId) {
-        // create content doc first and use its id
-        docId = await firestore.saveResumeContent(null, content);
-        setFirestoreDocId(docId);
-        // save layout under same id
-        await firestore.saveResumeLayout(docId, layout);
-      } else {
-        await firestore.saveResumeContent(docId, content);
-        await firestore.saveResumeLayout(docId, layout);
+        showSnackbar("error", "No document ID available");
+        return;
       }
+      
+      // Save to existing document
+      await firestore.saveResumeContent(docId, content);
+      await firestore.saveResumeLayout(docId, layout);
 
       // persist doc id so subsequent sessions reuse the same document
       try {
@@ -983,17 +1058,6 @@ const Resume = () => {
       setIsSaving(false);
     }
   };
-
-  // If the route contains a docId param, auto-load it
-  useEffect(() => {
-    if (params?.docId) {
-      // prefill the input and attempt load
-      setLoadDocId(params.docId);
-      if (params.docId !== firestoreDocId) {
-        loadFromFirestore(params.docId);
-      }
-    }
-  }, [params?.docId]);
 
   const addSection = (sectionId) => {
     const sectionTemplate = availableSections.find((s) => s.id === sectionId);

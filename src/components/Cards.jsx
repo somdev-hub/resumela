@@ -1,8 +1,21 @@
 import React from "react";
 import { FaFileAlt } from "react-icons/fa";
 import { MdOutlineMail } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
 
 const Cards = () => {
+  const navigate = useNavigate();
+
+  const handleCreateResume = () => {
+    const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    navigate(`/resume/${newDocId}`);
+  };
+
+  const handleCreateCoverLetter = () => {
+    const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    navigate(`/cover-letter/${newDocId}`);
+  };
+
   return (
     <div className="flex gap-8 justify-center mx-[16rem]">
       {/* Resumes Card */}
@@ -17,7 +30,10 @@ const Cards = () => {
           <button className="bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded shadow hover:bg-gray-200 font-semibold">
             Import Resume
           </button>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold">
+          <button 
+            onClick={handleCreateResume}
+            className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
+          >
             + New Resume
           </button>
         </div>
@@ -32,7 +48,10 @@ const Cards = () => {
           your dream job.
         </p>
         <div className="flex gap-2">
-          <button className="bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded shadow hover:bg-gray-200 font-semibold">
+          <button 
+            onClick={handleCreateCoverLetter}
+            className="bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded shadow hover:bg-gray-200 font-semibold"
+          >
             + New Cover Letter
           </button>
           <button className="bg-blue-50 text-blue-700 border border-blue-200 px-4 py-2 rounded shadow hover:bg-blue-100 font-semibold">

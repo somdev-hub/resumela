@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
-import { usePDF } from "react-to-pdf";
 import {
   Box,
   Button,
@@ -21,7 +20,7 @@ import {
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
 } from "@mui/icons-material";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   saveCoverLetterContent,
   saveCoverLetterLayout,
@@ -39,10 +38,12 @@ import {
   DEFAULT_FORM_DATA,
 } from "../hooks/useCoverLetterState";
 import { useFontLoading } from "../hooks/useFontLoading";
+import { exportCoverLetterToPDF } from "../utils/CoverLetterExporter";
 
 const CoverLetter = () => {
   const [syncWithResume, setSyncWithResume] = useState(true);
   const params = useParams();
+  const navigate = useNavigate();
   const pdfPreviewRef = useRef(null);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -64,12 +65,11 @@ const CoverLetter = () => {
     activeFontCategory,
     setActiveFontCategory,
     handleInputChange,
-    handleSignatureUpload,
     computeSignature,
   } = useCoverLetterState();
 
-  const { saveDraftToLocal, loadDraftFromLocal } = useCoverLetterLocalStorage();
-  const { fontStatus, fontReadyToggle, loadGoogleFont } =
+  const { saveDraftToLocal } = useCoverLetterLocalStorage();
+  const { fontStatus, loadGoogleFont } =
     useFontLoading(selectedFont);
 
   // Firestore state for cover letter
@@ -81,10 +81,12 @@ const CoverLetter = () => {
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   const autosaveTimerRef = useRef(null);
   const pendingSaveRef = useRef({});
   const lastSavedSignatureRef = useRef(null);
+  const hasUserEditedRef = useRef(false); // Track if user has made any edits
 
   const showSnackbar = (severity, text, timeout = 3000) => {
     setSnackbarMsg(text);
@@ -108,31 +110,11 @@ const CoverLetter = () => {
       "firestoreDocId:",
       firestoreDocId
     );
-    if (!firestoreDocId) {
-      showSnackbar("info", "Creating new cover letter...");
-      try {
-        const layout = {
-          spacingConfig,
-          personalConfig,
-          selectedFont,
-          layoutConfig,
-        };
-        console.log(
-          "[CoverLetter] Creating new document with formData:",
-          formData
-        );
-        const contentId = await saveCoverLetterContent(null, formData);
-        console.log("[CoverLetter] Content saved with ID:", contentId);
-        await saveCoverLetterLayout(contentId, layout);
-        console.log("[CoverLetter] Layout saved for ID:", contentId);
-        setFirestoreDocId(contentId);
-        setLoadDocId(contentId);
-        showSnackbar("success", "Cover letter created and saved");
-        lastSavedSignatureRef.current = computeSignature(formData, layout);
-      } catch (err) {
-        console.error("Failed to create cover letter:", err);
-        showSnackbar("error", `Failed to create cover letter: ${err.message}`);
-      }
+    
+    // Use the existing docId from URL/state
+    const docId = firestoreDocId;
+    if (!docId) {
+      showSnackbar("error", "No document ID available");
       return;
     }
 
@@ -141,8 +123,8 @@ const CoverLetter = () => {
 
       // Three-way merge: detect conflicts
       if (!skipConflictCheck && !force) {
-        const remoteContent = await getCoverLetterContent(firestoreDocId);
-        const remoteLayout = await getCoverLetterLayout(firestoreDocId);
+        const remoteContent = await getCoverLetterContent(docId);
+        const remoteLayout = await getCoverLetterLayout(docId);
         const remoteSignature = computeSignature(remoteContent, remoteLayout);
         const localSignature = computeSignature(formData, {
           spacingConfig,
@@ -177,9 +159,9 @@ const CoverLetter = () => {
         selectedFont,
         layoutConfig,
       };
-      console.log("[CoverLetter] Saving to existing doc:", firestoreDocId);
-      await saveCoverLetterContent(firestoreDocId, formData);
-      await saveCoverLetterLayout(firestoreDocId, layout);
+      console.log("[CoverLetter] Saving to doc:", docId);
+      await saveCoverLetterContent(docId, formData);
+      await saveCoverLetterLayout(docId, layout);
 
       lastSavedSignatureRef.current = computeSignature(formData, layout);
       setLastSavedAt(new Date().toISOString());
@@ -261,63 +243,92 @@ const CoverLetter = () => {
   );
 
   useEffect(() => {
-    // Don't load draft - start with fresh defaults
-    // Draft loading can be added optionally in the future with user confirmation
-    return () => {
-      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Initialize Firestore document on first mount if user is logged in and no docId in route
-  useEffect(() => {
-    if (!firestoreDocId && !params?.docId) {
-      const initializeDoc = async () => {
-        try {
-          const { getAuth } = await import("firebase/auth");
-          const auth = getAuth();
-          if (!auth.currentUser) {
-            return;
-          }
-
-          const layout = {
+    const initializeDocument = async () => {
+      const urlDocId = params?.docId;
+      
+      if (!urlDocId) {
+        // No docId in URL - shouldn't happen with new flow, but handle gracefully
+        return;
+      }
+      
+      // If we already have this docId loaded, skip
+      if (firestoreDocId === urlDocId) {
+        return;
+      }
+      
+      // Set the docId from URL
+      setFirestoreDocId(urlDocId);
+      setLoadDocId(urlDocId);
+      
+      try {
+        // Try to load existing document from Firestore
+        const content = await getCoverLetterContent(urlDocId);
+        
+        if (content) {
+          // Document exists, load it
+          await loadFromFirestore(urlDocId);
+        } else {
+          // Document doesn't exist, create it as "Untitled Cover Letter"
+          const initialFormData = {
+            ...DEFAULT_FORM_DATA,
+            title: "Untitled Cover Letter",
+          };
+          
+          const initialLayout = {
             spacingConfig,
             personalConfig,
             selectedFont,
             layoutConfig,
           };
-          // Save with empty/default form data on first creation
-          const contentId = await saveCoverLetterContent(null, DEFAULT_FORM_DATA);
-          await saveCoverLetterLayout(contentId, layout);
-          setFirestoreDocId(contentId);
-          setLoadDocId(contentId);
-          lastSavedSignatureRef.current = computeSignature(DEFAULT_FORM_DATA, layout);
-        } catch (err) {
-          console.error("[CoverLetter] Init failed:", err);
+          
+          // Create the document in Firestore with the URL's docId
+          await saveCoverLetterContent(urlDocId, initialFormData);
+          await saveCoverLetterLayout(urlDocId, initialLayout);
+          
+          // Update local state
+          setFormData(initialFormData);
+          
+          // Update signature to prevent immediate re-save
+          lastSavedSignatureRef.current = computeSignature(initialFormData, initialLayout);
+          setLastSavedAt(new Date().toISOString());
+          
+          showSnackbar("success", "New cover letter created", 2000);
         }
-      };
-      initializeDoc();
-    }
-  }, [params?.docId, firestoreDocId]);
+        
+        // Persist the docId to localStorage
+        try {
+          localStorage.setItem("coverletter_firestore_docId", urlDocId);
+        } catch (e) {
+          // ignore localStorage errors
+        }
+      } catch (err) {
+        console.error("Failed to initialize document:", err);
+        showSnackbar("error", "Failed to initialize cover letter", 3000);
+      }
+    };
+    
+    initializeDocument();
+    
+    // Cleanup autosave timer on unmount
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [params?.docId]);
+
   useEffect(() => {
     setLoadDocId(firestoreDocId || "");
   }, [firestoreDocId]);
 
-  // If the route contains a docId param, auto-load it
-  useEffect(() => {
-    if (params?.docId && params.docId !== firestoreDocId) {
-      loadFromFirestore(params.docId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params?.docId]);
-
   // Autosave debounced changes to local or Firestore
   useEffect(() => {
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    
     autosaveTimerRef.current = setTimeout(() => {
       if (firestoreDocId) {
+        // Only autosave to Firestore if we have a document ID
         saveToFirestore({ skipConflictCheck: true });
       } else {
+        // If no doc created yet, just save to local storage
         const result = saveDraftToLocal(formData);
         if (result.success) {
           setLastSavedAt(new Date().toISOString());
@@ -353,20 +364,9 @@ const CoverLetter = () => {
       : "cover_letter";
   }, [formData.fullName]);
 
-  const { toPDF, targetRef } = usePDF({
-    filename: `${sanitizedFilename}_styled.pdf`,
-    resolution: 2,
-  });
-
-  const combinedPreviewRef = useCallback(
-    (node) => {
-      pdfPreviewRef.current = node;
-      if (targetRef && "current" in targetRef) {
-        targetRef.current = node;
-      }
-    },
-    [targetRef]
-  );
+  const combinedPreviewRef = useCallback((node) => {
+    pdfPreviewRef.current = node;
+  }, []);
 
   const letterParagraphs = useMemo(() => {
     try {
@@ -397,6 +397,31 @@ const CoverLetter = () => {
   const secondaryLine = useMemo(() => {
     return [formData.linkedin, formData.github].filter(Boolean).join(" | ");
   }, [formData.github, formData.linkedin]);
+
+  const handleExportStyledPDF = async () => {
+    try {
+      setIsExportingPDF(true);
+      showSnackbar("info", "Generating professional PDF...", 0);
+      
+      await exportCoverLetterToPDF(
+        "preview-coverletter",
+        sanitizedFilename,
+        {
+          onSuccess: () => {
+            showSnackbar("success", "PDF exported successfully!", 3000);
+            setIsExportingPDF(false);
+          },
+          onError: (error) => {
+            showSnackbar("error", "Failed to export PDF. Make sure the backend server is running.", 5000);
+            setIsExportingPDF(false);
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Export failed:", error);
+      setIsExportingPDF(false);
+    }
+  };
 
   const downloadATSOptimizedPDF = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -553,9 +578,10 @@ const CoverLetter = () => {
             <Button
               variant="outlined"
               startIcon={<VisibilityIcon />}
-              onClick={() => toPDF()}
+              onClick={handleExportStyledPDF}
+              disabled={isExportingPDF}
             >
-              Styled PDF
+              {isExportingPDF ? "Exporting..." : "Styled PDF"}
             </Button>
             <Button
               variant="contained"

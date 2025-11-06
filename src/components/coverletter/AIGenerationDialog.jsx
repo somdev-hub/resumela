@@ -75,13 +75,14 @@ const AIGenerationDialog = ({ open, onClose, onGenerate }) => {
         return;
       }
 
+      // Close dialog immediately before starting generation
+      onClose();
+
       // Call the onGenerate callback with the selected resume and job URL
       await onGenerate({
         jobUrl: jobUrl.trim(),
         resumeId: selectedResumeId,
       });
-
-      onClose();
     } catch (err) {
       console.error("Generation failed:", err);
       setError(err.message || "Failed to generate cover letter");

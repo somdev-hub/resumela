@@ -73,8 +73,14 @@ export function initFirestore() {
 export async function saveResumeContent(docId, content) {
   const db = initFirestore();
   if (docId) {
-    await setDoc(doc(db, "resume_content", docId), {
+    // Check if document already exists
+    const docRef = doc(db, "resume_content", docId);
+    const docSnap = await getDoc(docRef);
+    const isNew = !docSnap.exists();
+    
+    await setDoc(docRef, {
       ...content,
+      ...(isNew ? { createdAt: serverTimestamp() } : {}),
       updatedAt: serverTimestamp(),
     });
     // update local cache and optional redis
@@ -103,8 +109,14 @@ export async function saveResumeContent(docId, content) {
 export async function saveResumeLayout(docId, layout) {
   const db = initFirestore();
   if (docId) {
-    await setDoc(doc(db, "resume_layout", docId), {
+    // Check if document already exists
+    const docRef = doc(db, "resume_layout", docId);
+    const docSnap = await getDoc(docRef);
+    const isNew = !docSnap.exists();
+    
+    await setDoc(docRef, {
       ...layout,
+      ...(isNew ? { createdAt: serverTimestamp() } : {}),
       updatedAt: serverTimestamp(),
     });
     try {
@@ -161,8 +173,14 @@ export async function saveCoverLetterContent(docId, content) {
   try {
     if (docId) {
       console.log("[saveCoverLetterContent] Updating doc:", docId);
-      await setDoc(doc(db, "coverletter_content", docId), {
+      // Check if document already exists
+      const docRef = doc(db, "coverletter_content", docId);
+      const docSnap = await getDoc(docRef);
+      const isNew = !docSnap.exists();
+      
+      await setDoc(docRef, {
         ...content,
+        ...(isNew ? { createdAt: serverTimestamp() } : {}),
         updatedAt: serverTimestamp(),
       });
       try {
@@ -196,8 +214,14 @@ export async function saveCoverLetterLayout(docId, layout) {
   try {
     if (docId) {
       console.log("[saveCoverLetterLayout] Updating layout for doc:", docId);
-      await setDoc(doc(db, "coverletter_layout", docId), {
+      // Check if document already exists
+      const docRef = doc(db, "coverletter_layout", docId);
+      const docSnap = await getDoc(docRef);
+      const isNew = !docSnap.exists();
+      
+      await setDoc(docRef, {
         ...layout,
+        ...(isNew ? { createdAt: serverTimestamp() } : {}),
         updatedAt: serverTimestamp(),
       });
       try {

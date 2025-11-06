@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { FaFileAlt } from "react-icons/fa";
 import { MdOutlineMail } from "react-icons/md";
+import { BsThreeDots } from "react-icons/bs";
 
 import Navbar from "../components/Navbar";
 import Cards from "../components/Cards";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { initFirestore } from "../firebase/firestore";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import {
   Dialog,
   DialogTitle,
@@ -16,21 +17,40 @@ import {
   FormControlLabel,
   Radio,
   Button,
+  Menu,
+  MenuItem,
+  TextField,
 } from "@mui/material";
 
-// Create a small SVG data URL used as a preview thumbnail for the document cards
-const svgDataUrl = (title) => {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='440' height='240'><rect width='100%' height='100%' fill='%23ffffff' stroke='%23e5e7eb' rx='12' ry='12'/><text x='16' y='40' font-family='Arial, Helvetica, sans-serif' font-size='20' fill='%230f172a'>${title.replace(
-    /</g,
-    ""
-  )}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+// Generate a simple text preview with key document info
+const generatePreviewContent = (doc, type) => {
+  if (type === "resume") {
+    const formData = doc.formData || {};
+    const sections = doc.sections || [];
+    const visibleSections = sections.filter(s => s.visible).length;
+    
+    return {
+      name: formData.fullName || "Untitled Resume",
+      title: formData.title || "",
+      contact: [formData.email, formData.phone].filter(Boolean).join(" • "),
+      stats: `${sections.length} sections`,
+    };
+  } else {
+    return {
+      name: doc.fullName || "Untitled Cover Letter",
+      company: doc.recipientCompany || "",
+      preview: doc.letterContent?.substring(0, 60) + "..." || "Letter content...",
+      stats: doc.date || "",
+    };
+  }
 };
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [previewData, setPreviewData] = useState({}); // Store preview content data for each doc
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +77,13 @@ const Home = () => {
               ? data.createdAt.toDate().toISOString()
               : data.createdAt
             : new Date().toISOString();
+          
+          // Generate preview content for resume
+          if (mounted) {
+            const preview = generatePreviewContent(data, "resume");
+            setPreviewData((prev) => ({ ...prev, [d.id]: preview }));
+          }
+          
           return {
             id: d.id,
             title,
@@ -81,6 +108,13 @@ const Home = () => {
               ? data.createdAt.toDate().toISOString()
               : data.createdAt
             : new Date().toISOString();
+          
+          // Generate preview content for cover letter
+          if (mounted) {
+            const preview = generatePreviewContent(data, "cover");
+            setPreviewData((prev) => ({ ...prev, [d.id]: preview }));
+          }
+          
           return {
             id: d.id,
             title,
@@ -107,7 +141,7 @@ const Home = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [location.pathname]);
 
   const handleDelete = async (docId, docType) => {
     const ok = window.confirm("Delete this document? This action cannot be undone.");
@@ -165,13 +199,149 @@ const Home = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState("resume");
 
+  // Menu and edit title state
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [selectedDocId, setSelectedDocId] = useState(null);
+  const [editTitleOpen, setEditTitleOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDocType, setEditDocType] = useState(null);
+
   const openCreateDialog = () => setCreateDialogOpen(true);
   const closeCreateDialog = () => setCreateDialogOpen(false);
 
   const handleCreateConfirm = () => {
     closeCreateDialog();
-    if (createType === "resume") navigate(`/resume`);
-    else if (createType === "cover") navigate(`/cover-letter`);
+    // Generate a unique ID for the new document
+    const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (createType === "resume") navigate(`/resume/${newDocId}`);
+    else if (createType === "cover") navigate(`/cover-letter/${newDocId}`);
+  };
+
+  const handleCreateDirectly = (type) => {
+    // Generate a unique ID for the new document
+    const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Navigate to the new document with the generated ID
+    if (type === "resume") navigate(`/resume/${newDocId}`);
+    else if (type === "cover") navigate(`/cover-letter/${newDocId}`);
+  };
+
+  const handleMenuOpen = (e, docId, docType) => {
+    setMenuAnchor(e.currentTarget);
+    setSelectedDocId(docId);
+    setEditDocType(docType);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+    setSelectedDocId(null);
+  };
+
+  const handleEditTitle = () => {
+    const doc = resumes.find((r) => r.id === selectedDocId);
+    if (doc) {
+      setEditTitle(doc.title);
+      setEditTitleOpen(true);
+    }
+    handleMenuClose();
+  };
+
+  const handleSaveTitle = async () => {
+    if (!editTitle.trim()) return;
+    try {
+      const db = initFirestore();
+      const collectionName =
+        editDocType === "resume" ? "resume_content" : "coverletter_content";
+      const docRef = doc(db, collectionName, selectedDocId);
+      await updateDoc(docRef, { title: editTitle });
+      setResumes((prev) =>
+        prev.map((r) =>
+          r.id === selectedDocId ? { ...r, title: editTitle } : r
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update title:", err);
+    } finally {
+      setEditTitleOpen(false);
+      setEditTitle("");
+    }
+  };
+
+  const handleDuplicate = async () => {
+    handleMenuClose();
+    const sourceDoc = resumes.find((r) => r.id === selectedDocId);
+    if (!sourceDoc) return;
+
+    try {
+      const db = initFirestore();
+      const collectionName =
+        editDocType === "resume" ? "resume_content" : "coverletter_content";
+      const sourceDocRef = doc(db, collectionName, selectedDocId);
+      const sourceData = (await getDocs(collection(db, collectionName))).docs.find(
+        (d) => d.id === selectedDocId
+      );
+
+      if (!sourceData) return;
+
+      const newTitle = `${sourceDoc.title} (Copy)`;
+      const sourceContent = sourceData.data();
+
+      // Add the duplicate document with a new timestamp
+      const newDocData = {
+        ...sourceContent,
+        title: newTitle,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const newDocRef = doc(collection(db, collectionName));
+      await updateDoc(newDocRef, newDocData);
+
+      // Also try to duplicate layout if it exists
+      const layoutCollectionName =
+        editDocType === "resume" ? "resume_layout" : "coverletter_layout";
+      try {
+        const layoutSnaps = await getDocs(collection(db, layoutCollectionName));
+        const sourceLayout = layoutSnaps.docs.find(
+          (d) => d.id === selectedDocId
+        );
+        if (sourceLayout) {
+          const newLayoutRef = doc(collection(db, layoutCollectionName));
+          await updateDoc(newLayoutRef, sourceLayout.data());
+        }
+      } catch (e) {
+        console.debug("No layout to duplicate:", e);
+      }
+
+      // Refetch the documents
+      const updatedSnaps = await getDocs(collection(db, collectionName));
+      const updatedItems = updatedSnaps.docs.map((d) => {
+        const data = d.data() || {};
+        const title = data.title || "Untitled";
+        const updatedAt = data.updatedAt
+          ? data.updatedAt.toDate
+            ? data.updatedAt.toDate().toISOString()
+            : data.updatedAt
+          : new Date().toISOString();
+        return {
+          id: d.id,
+          title,
+          updatedAt,
+          type: editDocType,
+          created: true,
+        };
+      });
+
+      setResumes((prev) => {
+        const filtered = prev.filter((r) => r.type !== editDocType);
+        return [...filtered, ...updatedItems].sort(
+          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+        );
+      });
+    } catch (err) {
+      console.error("Failed to duplicate document:", err);
+    }
   };
 
   useEffect(() => {
@@ -235,74 +405,198 @@ const Home = () => {
       <Cards />
 
       {/* Your Documents Section */}
-      <div className="mt-12 w-full max-w-5xl">
-        <h2 className="text-2xl font-bold mb-4">Your Documents</h2>
-        <div className="grid grid-cols-4 gap-4">
-          {/* Document Cards */}
-          {(loading ? [] : resumes).map((doc) => (
-            <div
-              key={doc.id}
-              className="bg-white rounded-xl shadow-md p-4 flex flex-col items-start"
-            >
-              {/* Image Preview (simple SVG generated thumbnail) */}
-              <img
-                src={svgDataUrl(doc.title)}
-                alt={`${doc.title} preview`}
-                className="mb-2 w-full rounded border border-gray-200 bg-gray-50"
-                style={{ display: "block" }}
-              />
-              {doc.type === "resume" ? (
-                <FaFileAlt className="text-blue-500 text-3xl mb-2" />
-              ) : (
-                <MdOutlineMail className="text-blue-500 text-3xl mb-2" />
-              )}
-              <h3 className="font-bold text-lg">{doc.title}</h3>
-              <p className="text-gray-500 text-sm mb-2">
-                {doc.type === "resume"
-                  ? `Updated ${getTimeAgo(doc.updatedAt)}`
-                  : `Updated ${getTimeAgo(doc.updatedAt)}`} {" "}
-                <span
-                  className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
-                    doc.created
-                      ? "bg-green-100 text-green-700"
-                      : "bg-yellow-100 text-yellow-700"
-                  }`}
-                >
-                  {doc.created ? "Created" : "Imported"}
-                </span>
-              </p>
-              {/* Removed preview text here */}
-              <div className="flex items-center gap-2">
+      <div className="mt-12 w-full max-w-6xl px-4">
+        <h2 className="text-3xl font-bold mb-8">Your Documents</h2>
+
+        {/* Resumes Section */}
+        {resumes.filter((doc) => doc.type === "resume").length > 0 && (
+          <div className="mb-12">
+            <h3 className="text-xl font-semibold mb-4">Resumes</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              {(loading ? [] : resumes.filter((doc) => doc.type === "resume")).map((doc) => {
+                const preview = previewData[doc.id];
+                return (
+                  <div key={doc.id} className="flex flex-col">
+                    {/* A4 Aspect Ratio Card - 1:1.414 */}
+                    <div 
+                      className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer mb-3 flex flex-col"
+                      onClick={() => navigate(`/resume/${doc.id}`)}
+                      style={{ aspectRatio: "1/1.414" }}
+                    >
+                      {preview ? (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-50 via-white to-gray-50 p-4 flex flex-col justify-between text-sm">
+                          <div>
+                            <h3 className="font-bold text-base text-gray-900 truncate">{preview.name}</h3>
+                            {preview.title && <p className="text-xs text-gray-600 truncate">{preview.title}</p>}
+                            {preview.contact && <p className="text-xs text-gray-500 truncate mt-1">{preview.contact}</p>}
+                          </div>
+                          <div className="text-xs text-gray-400 text-center">
+                            {preview.stats}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                          <p className="text-xs text-gray-400">Loading...</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Title and Date Row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm text-gray-900 truncate">
+                          {doc.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 truncate">
+                          {getTimeAgo(doc.updatedAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleMenuOpen(e, doc.id, "resume")}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <BsThreeDots size={18} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Create New Resume Card */}
+              <div className="flex flex-col">
                 <button
-                  onClick={() => 
-                    doc.type === "resume" 
-                      ? navigate(`/resume/${doc.id}`)
-                      : navigate(`/cover-letter/${doc.id}`)
-                  }
-                  className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
+                  type="button"
+                  onClick={() => handleCreateDirectly("resume")}
+                  className="cursor-pointer bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors mb-3 flex-1 flex flex-col items-center justify-center"
                 >
-                  Edit
+                  <div className="text-gray-400 text-3xl">+</div>
                 </button>
-                <button
-                  onClick={() => handleDelete(doc.id, doc.type)}
-                  className="bg-red-50 text-red-700 px-3 py-2 rounded shadow hover:bg-red-100 font-semibold"
-                >
-                  Delete
-                </button>
+                <p className="text-sm text-gray-600 text-center">New resume</p>
               </div>
             </div>
-          ))}
-          {/* Create New Card */}
-          <button
-            type="button"
-            onClick={openCreateDialog}
-            className="cursor-pointer bg-gray-100 rounded-xl shadow-md p-4 flex flex-col items-center justify-center hover:bg-gray-200"
-          >
-            <div className="text-blue-500 text-3xl mb-2">+</div>
-            <h3 className="font-bold text-lg">Create New</h3>
-          </button>
-        </div>
+          </div>
+        )}
+
+        {/* Cover Letters Section */}
+        {resumes.filter((doc) => doc.type === "cover").length > 0 && (
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Cover Letters</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              {(loading ? [] : resumes.filter((doc) => doc.type === "cover")).map((doc) => {
+                const preview = previewData[doc.id];
+                return (
+                  <div key={doc.id} className="flex flex-col">
+                    {/* A4 Aspect Ratio Card - 1:1.414 */}
+                    <div 
+                      className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer mb-3 flex flex-col"
+                      onClick={() => navigate(`/cover-letter/${doc.id}`)}
+                      style={{ aspectRatio: "1/1.414" }}
+                    >
+                      {preview ? (
+                        <div className="w-full h-full bg-gradient-to-br from-amber-50 via-white to-gray-50 p-4 flex flex-col justify-between text-sm">
+                          <div>
+                            <h3 className="font-bold text-base text-gray-900 truncate">{preview.name}</h3>
+                            {preview.company && <p className="text-xs text-gray-600 truncate">{preview.company}</p>}
+                            {preview.preview && <p className="text-xs text-gray-500 mt-2 line-clamp-3">{preview.preview}</p>}
+                          </div>
+                          <div className="text-xs text-gray-400 text-center">
+                            {preview.stats}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                          <p className="text-xs text-gray-400">Loading...</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Title and Date Row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm text-gray-900 truncate">
+                          {doc.title}
+                        </h4>
+                        <p className="text-xs text-gray-500 truncate">
+                          {getTimeAgo(doc.updatedAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleMenuOpen(e, doc.id, "cover")}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <BsThreeDots size={18} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Create New Cover Letter Card */}
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => handleCreateDirectly("cover")}
+                  className="cursor-pointer bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors mb-3 flex-1 flex flex-col items-center justify-center"
+                >
+                  <div className="text-gray-400 text-3xl">+</div>
+                </button>
+                <p className="text-sm text-gray-600 text-center">New letter</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && resumes.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">
+              No documents yet. Create your first resume or cover letter!
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Menu for document actions */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditTitle}>Edit title</MenuItem>
+        <MenuItem onClick={handleDuplicate}>Duplicate</MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleDelete(selectedDocId, editDocType);
+            handleMenuClose();
+          }}
+          sx={{ color: "error.main" }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Edit Title Dialog */}
+      <Dialog open={editTitleOpen} onClose={() => setEditTitleOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit title</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Document title"
+            fullWidth
+            variant="outlined"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditTitleOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveTitle}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
