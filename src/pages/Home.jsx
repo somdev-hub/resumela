@@ -27,7 +27,6 @@ const generatePreviewContent = (doc, type) => {
   if (type === "resume") {
     const formData = doc.formData || {};
     const sections = doc.sections || [];
-    const visibleSections = sections.filter(s => s.visible).length;
     
     return {
       name: formData.fullName || "Untitled Resume",
@@ -51,10 +50,22 @@ const Home = () => {
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [previewData, setPreviewData] = useState({}); // Store preview content data for each doc
+  const [user, setUser] = useState(null); // Track authentication state
+  const [authLoading, setAuthLoading] = useState(true); // Track if auth is being checked
 
   useEffect(() => {
     let mounted = true;
     async function fetchResumes() {
+      // Only fetch if user is authenticated
+      if (!user) {
+        if (mounted) {
+          setResumes([]);
+          setPreviewData({});
+          setLoading(false);
+        }
+        return;
+      }
+      
       setLoading(true);
       try {
         const db = initFirestore();
@@ -141,7 +152,7 @@ const Home = () => {
     return () => {
       mounted = false;
     };
-  }, [location.pathname]);
+  }, [location.pathname, user]); // Re-fetch when user changes
 
   const handleDelete = async (docId, docType) => {
     const ok = window.confirm("Delete this document? This action cannot be undone.");
@@ -206,7 +217,6 @@ const Home = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editDocType, setEditDocType] = useState(null);
 
-  const openCreateDialog = () => setCreateDialogOpen(true);
   const closeCreateDialog = () => setCreateDialogOpen(false);
 
   const handleCreateConfirm = () => {
@@ -277,7 +287,6 @@ const Home = () => {
       const db = initFirestore();
       const collectionName =
         editDocType === "resume" ? "resume_content" : "coverletter_content";
-      const sourceDocRef = doc(db, collectionName, selectedDocId);
       const sourceData = (await getDocs(collection(db, collectionName))).docs.find(
         (d) => d.id === selectedDocId
       );
@@ -353,15 +362,22 @@ const Home = () => {
         const { getAuth, onAuthStateChanged } = await import("firebase/auth");
         const auth = getAuth();
         // use onAuthStateChanged so we react to when Firebase finishes initializing the user
-        unsubscribe = onAuthStateChanged(auth, (user) => {
-          const name =
-            user?.displayName ||
-            (user?.email ? user.email.split("@")[0] : "") ||
-            "Guest";
-          if (mounted) setUserName(name);
+        unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          if (mounted) {
+            setUser(currentUser); // Set user state
+            setAuthLoading(false); // Auth check complete
+            const name =
+              currentUser?.displayName ||
+              (currentUser?.email ? currentUser.email.split("@")[0] : "") ||
+              "Guest";
+            setUserName(name);
+          }
         });
       } catch (err) {
         console.error("Failed to get auth user:", err);
+        if (mounted) {
+          setAuthLoading(false);
+        }
       }
     })();
     return () => {
@@ -408,8 +424,33 @@ const Home = () => {
       <div className="mt-12 w-full max-w-6xl px-4">
         <h2 className="text-3xl font-bold mb-8">Your Documents</h2>
 
-        {/* Resumes Section */}
-        {resumes.filter((doc) => doc.type === "resume").length > 0 && (
+        {/* Show message if not logged in */}
+        {!authLoading && !user && (
+          <div className="text-center py-12 bg-white rounded-lg shadow-md">
+            <p className="text-gray-500 text-lg mb-4">
+              Please log in to view your documents.
+            </p>
+            <Button
+              variant="contained"
+              onClick={() => navigate("/login")}
+            >
+              Log In
+            </Button>
+          </div>
+        )}
+
+        {/* Show loading state while checking auth */}
+        {authLoading && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Loading...</p>
+          </div>
+        )}
+
+        {/* Show documents only if logged in */}
+        {!authLoading && user && (
+          <>
+            {/* Resumes Section */}
+            {resumes.filter((doc) => doc.type === "resume").length > 0 && (
           <div className="mb-12">
             <h3 className="text-xl font-semibold mb-4">Resumes</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -553,6 +594,8 @@ const Home = () => {
               No documents yet. Create your first resume or cover letter!
             </p>
           </div>
+        )}
+          </>
         )}
       </div>
 

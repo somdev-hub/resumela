@@ -1,7 +1,37 @@
 import React from "react";
 import LinkIcon from "@mui/icons-material/Link";
 
-const SectionPreview = ({ section, spacingConfig }) => {
+const SectionPreview = ({ section, spacingConfig, colorConfig }) => {
+  // Helper to get color styles based on colorConfig
+  const getColorStyles = () => {
+    if (!colorConfig) return {};
+    
+    switch (colorConfig.mode) {
+      case "basic":
+        // Basic: Apply selected color to text only
+        if (!colorConfig.selectedColor) return {};
+        return { color: colorConfig.selectedColor, borderColor: colorConfig.selectedColor };
+      case "advanced":
+        // Advanced with multi accent mode
+        if (colorConfig.accentMode === "multi") {
+          return { 
+            color: colorConfig.multiAccentColor || "#2c3e50", 
+            borderColor: colorConfig.multiAccentColor || "#2c3e50" 
+          };
+        }
+        // Advanced with accent mode: Apply color to section headings (not header - it already has background)
+        if (!colorConfig.selectedColor) return {};
+        return { color: colorConfig.selectedColor, borderColor: colorConfig.selectedColor };
+      case "border":
+        // Border: Keep text black, apply color to border only
+        if (!colorConfig.selectedColor) return {};
+        return { borderColor: colorConfig.selectedColor, color: "#1f2937" };
+      default:
+        return {};
+    }
+  };
+
+  const colorStyles = getColorStyles();
   // Helper: extract list items from HTML produced by the RichTextEditor.
   // If no <li> elements are present, fall back to splitting plain text by commas/newlines/pipes.
   const extractSkills = (html) => {
@@ -28,7 +58,10 @@ const SectionPreview = ({ section, spacingConfig }) => {
 
   return (
     <div className="mb-2">
-      <h2 className="resume-section-heading text-lg font-bold text-slate-900 border-b-2 border-slate-900 mb-2">
+      <h2 
+        className="resume-section-heading text-lg font-bold border-b-2 mb-2"
+        style={colorStyles}
+      >
         {section.name.toUpperCase()}
       </h2>
       <div>

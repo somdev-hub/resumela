@@ -1,6 +1,7 @@
 import HeaderConfig from "./HeaderConfig";
 import FontSelector from "./FontSelector";
 import PersonalDetailsConfig from "./PersonalDetailsConfig";
+import ColorSelector from "../ColorSelector";
 import SpacingControls from "./SpacingControls";
 import PersonalInfoForm from "./PersonalInfoForm";
 import LetterDetailsForm from "./LetterDetailsForm";
@@ -20,6 +21,8 @@ const CoverLetterEditor = ({
   fontStatus,
   personalConfig,
   setPersonalConfig,
+  colorConfig,
+  setColorConfig,
   spacingConfig,
   setSpacingConfig,
   formData,
@@ -73,6 +76,10 @@ const CoverLetterEditor = ({
             <PersonalDetailsConfig
               personalConfig={personalConfig}
               setPersonalConfig={setPersonalConfig}
+            />
+            <ColorSelector
+              colorConfig={colorConfig}
+              setColorConfig={setColorConfig}
             />
             <SpacingControls
               spacingConfig={spacingConfig}

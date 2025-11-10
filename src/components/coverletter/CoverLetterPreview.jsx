@@ -13,6 +13,7 @@ const CoverLetterPreview = ({
   spacingConfig,
   selectedFont,
   personalConfig,
+  colorConfig,
   combinedPreviewRef,
 }) => {
   const A4_WIDTH_PX = 794;
@@ -20,6 +21,10 @@ const CoverLetterPreview = ({
   const PX_PER_MM = 3.78;
   const paddingLR = Math.round((spacingConfig.marginLR || 10) * PX_PER_MM);
   const paddingTB = Math.round((spacingConfig.marginTB || 10) * PX_PER_MM);
+
+  const hasAccentBackground = colorConfig?.mode === "advanced" && 
+                               colorConfig?.accentMode === "accent" && 
+                               colorConfig?.selectedColor;
 
   const contactLine = useMemo(() => {
     return [formData.email, formData.phone, formData.location]
@@ -40,34 +45,56 @@ const CoverLetterPreview = ({
       { value: formData.github, type: "github", icon: <FaGithub /> },
     ].filter((item) => item.value);
 
+    const isMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
+    const textColor = hasAccentBackground || isMultiMode ? "#ffffff" : "#4b5563";
+
     if (personalConfig.contactStyle === "bullet") {
       return (
         <p
           className="resume-contact-line"
           style={{
             marginTop: "0.5rem",
-            color: "#4b5563",
+            color: textColor,
           }}
         >
           {contactItems.map((item, i) => (
-            <span key={i} style={{ marginRight: 8 }}>
+            <span key={i}>
+              {i > 0 && <span style={{ margin: "0 0.5rem" }}>•</span>}
               {item.value}
-              {i < contactItems.length - 1 ? " •" : ""}&nbsp;
             </span>
           ))}
         </p>
       );
     }
 
-    // icon and bar styles: render with icons and pipe separators
+    if (personalConfig.contactStyle === "bar") {
+      return (
+        <p
+          className="resume-contact-line"
+          style={{
+            marginTop: "0.5rem",
+            color: textColor,
+          }}
+        >
+          {contactItems.map((item, i) => (
+            <span key={i}>
+              {i > 0 && <span style={{ margin: "0 0.5rem" }}>|</span>}
+              {item.value}
+            </span>
+          ))}
+        </p>
+      );
+    }
+
+    // icon style: render with icons
     return (
       <div 
         className="mt-2 flex items-center justify-center gap-4 flex-wrap"
-        style={{ color: "#4b5563" }}
+        style={{ color: textColor }}
       >
         {contactItems.map((item, i) => (
           <span key={i} className="inline-flex items-center gap-2">
-            <span className="inline-flex" style={{ fontSize: "0.875em" }}>{item.icon}</span>
+            <span className="inline-flex" style={{ fontSize: "0.875em", color: hasAccentBackground || isMultiMode ? "rgba(255,255,255,0.8)" : undefined }}>{item.icon}</span>
             <span>{item.value}</span>
           </span>
         ))}
@@ -89,7 +116,11 @@ const CoverLetterPreview = ({
                 width: A4_WIDTH_PX,
                 minHeight: A4_HEIGHT_PX,
                 maxWidth: "100%",
-                background: "#fff",
+                background: colorConfig?.mode === "advanced" && 
+                           colorConfig?.accentMode === "multi" && 
+                           colorConfig?.multiBackgroundColor 
+                  ? colorConfig.multiBackgroundColor 
+                  : "#fff",
                 boxShadow: "0 6px 18px rgba(15,23,42,0.08)",
                 border: "1px solid rgba(0,0,0,0.06)",
                 borderRadius: 6,
@@ -203,11 +234,45 @@ const CoverLetterPreview = ({
               />
 
               {/* Header */}
-              <div className="letter-header">
-                <h1 className="resume-name">
+              <div 
+                className="letter-header"
+                style={{
+                  ...(hasAccentBackground ? {
+                    backgroundColor: colorConfig.selectedColor,
+                    color: "#ffffff",
+                    padding: "1.5rem",
+                    marginLeft: `-${paddingLR}px`,
+                    marginRight: `-${paddingLR}px`,
+                    marginTop: `-${paddingTB}px`,
+                    marginBottom: "1.5rem",
+                  } : colorConfig?.mode === "advanced" && 
+                      colorConfig?.accentMode === "multi" ? {
+                    backgroundColor: colorConfig.multiAccentColor || "#2c3e50",
+                    color: "#ffffff",
+                    padding: "1.5rem",
+                    marginLeft: `-${paddingLR}px`,
+                    marginRight: `-${paddingLR}px`,
+                    marginTop: `-${paddingTB}px`,
+                    marginBottom: "1.5rem",
+                  } : {})
+                }}
+              >
+                <h1 
+                  className="resume-name" 
+                  style={{
+                    ...(hasAccentBackground || (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi") ? { color: "#ffffff" } : {}),
+                    ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
+                  }}
+                >
                   {formData.fullName || "Your Name"}
                 </h1>
-                <h2 className="resume-role">
+                <h2 
+                  className="resume-role" 
+                  style={{
+                    ...(hasAccentBackground || (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi") ? { color: "#ffffff", opacity: 0.9 } : {}),
+                    ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
+                  }}
+                >
                   {formData.title || "Professional Title"}
                 </h2>
                 {contactLine && renderContactInfo()}

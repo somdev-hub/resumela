@@ -56,6 +56,8 @@ const CoverLetter = () => {
     setSpacingConfig,
     personalConfig,
     setPersonalConfig,
+    colorConfig,
+    setColorConfig,
     selectedFont,
     setSelectedFont,
     layoutConfig,
@@ -156,6 +158,7 @@ const CoverLetter = () => {
       const layout = {
         spacingConfig,
         personalConfig,
+        colorConfig,
         selectedFont,
         layoutConfig,
       };
@@ -191,6 +194,7 @@ const CoverLetter = () => {
       if (layout) {
         if (layout.spacingConfig) setSpacingConfig(layout.spacingConfig);
         if (layout.personalConfig) setPersonalConfig(layout.personalConfig);
+        if (layout.colorConfig) setColorConfig(layout.colorConfig);
         if (layout.selectedFont) setSelectedFont(layout.selectedFont);
         if (layout.layoutConfig) setLayoutConfig(layout.layoutConfig);
       }
@@ -222,6 +226,8 @@ const CoverLetter = () => {
       fontStatus={fontStatus}
       personalConfig={personalConfig}
       setPersonalConfig={setPersonalConfig}
+      colorConfig={colorConfig}
+      setColorConfig={setColorConfig}
       spacingConfig={spacingConfig}
       setSpacingConfig={setSpacingConfig}
       formData={formData}
@@ -277,6 +283,7 @@ const CoverLetter = () => {
           const initialLayout = {
             spacingConfig,
             personalConfig,
+            colorConfig,
             selectedFont,
             layoutConfig,
           };
@@ -342,6 +349,7 @@ const CoverLetter = () => {
     formData,
     spacingConfig,
     personalConfig,
+    colorConfig,
     selectedFont,
     layoutConfig,
     firestoreDocId,

@@ -437,6 +437,12 @@ const MultiPageResume = ({
           padding: `${resume.spacingConfig.marginTB * 3.78}px ${
             resume.spacingConfig.marginLR * 3.78
           }px`,
+          // Apply background color for multicolor mode
+          ...(resume.colorConfig?.mode === "advanced" && 
+              resume.colorConfig?.accentMode === "multi" && 
+              resume.colorConfig?.multiBackgroundColor ? {
+            backgroundColor: resume.colorConfig.multiBackgroundColor,
+          } : {}),
         }}
       >
         {/* Show controls only on first page */}
@@ -496,7 +502,20 @@ const MultiPageResume = ({
                 ? "flex gap-6 flex-row-reverse"
                 : "block"
             } ${resume.layoutConfig.headerPosition === "top" ? "" : ""}`}
-            style={{ textAlign: resume.personalConfig.align }}
+            style={{ 
+              textAlign: resume.personalConfig.align,
+              ...(resume.colorConfig?.mode === "advanced" && 
+                  resume.colorConfig?.accentMode === "accent" && 
+                  resume.colorConfig?.selectedColor ? {
+                backgroundColor: resume.colorConfig.selectedColor,
+                color: "#ffffff",
+                padding: "1.5rem",
+                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginBottom: "1.5rem",
+              } : {})
+            }}
           >
             {resume.formData.photoUrl && (
               <div
@@ -504,7 +523,11 @@ const MultiPageResume = ({
                   resume.layoutConfig.headerPosition === "top"
                     ? "h-24 w-24"
                     : "h-20 w-20"
-                } rounded-full overflow-hidden border-2 border-slate-200 flex-shrink-0`}
+                } rounded-full overflow-hidden border-2 ${
+                  resume.colorConfig?.mode === "advanced" && 
+                  resume.colorConfig?.accentMode === "accent" && 
+                  resume.colorConfig?.selectedColor ? "border-white" : "border-slate-200"
+                } flex-shrink-0`}
               >
                 <img
                   src={resume.formData.photoUrl}
@@ -521,6 +544,7 @@ const MultiPageResume = ({
               <ResumeHeader
                 formData={resume.formData}
                 personalConfig={resume.personalConfig}
+                colorConfig={resume.colorConfig}
               />
             </div>
           </div>
@@ -548,6 +572,7 @@ const MultiPageResume = ({
                   key={section.id}
                   section={section}
                   spacingConfig={resume.spacingConfig}
+                  colorConfig={resume.colorConfig}
                 />
               ))}
             </div>
@@ -569,6 +594,7 @@ const MultiPageResume = ({
                     key={section.id}
                     section={section}
                     spacingConfig={resume.spacingConfig}
+                    colorConfig={resume.colorConfig}
                   />
                 ))}
               </div>
@@ -578,6 +604,7 @@ const MultiPageResume = ({
                     key={section.id}
                     section={section}
                     spacingConfig={resume.spacingConfig}
+                    colorConfig={resume.colorConfig}
                   />
                 ))}
               </div>
@@ -591,6 +618,7 @@ const MultiPageResume = ({
                   <SectionPreview
                     section={pageData.firstSection}
                     spacingConfig={resume.spacingConfig}
+                    colorConfig={resume.colorConfig}
                   />
                 </div>
               )}
@@ -610,6 +638,7 @@ const MultiPageResume = ({
                         key={section.id}
                         section={section}
                         spacingConfig={resume.spacingConfig}
+                        colorConfig={resume.colorConfig}
                       />
                     ))}
                   </div>
@@ -619,6 +648,7 @@ const MultiPageResume = ({
                         key={section.id}
                         section={section}
                         spacingConfig={resume.spacingConfig}
+                        colorConfig={resume.colorConfig}
                       />
                     ))}
                   </div>

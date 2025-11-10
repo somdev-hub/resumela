@@ -7,18 +7,25 @@ import {
   FaGithub,
 } from "react-icons/fa";
 
-const ContactIcon = ({ type }) => {
+const ContactIcon = ({ type, hasAccentBackground }) => {
+  const iconClass = hasAccentBackground ? "text-white opacity-80" : "text-slate-500";
   const icons = {
-    email: <FaEnvelope className="text-slate-500" />,
-    phone: <FaPhone className="text-slate-500" />,
-    location: <FaMapMarkerAlt className="text-slate-500" />,
-    linkedin: <FaLinkedin className="text-slate-500" />,
-    github: <FaGithub className="text-slate-500" />,
+    email: <FaEnvelope className={iconClass} />,
+    phone: <FaPhone className={iconClass} />,
+    location: <FaMapMarkerAlt className={iconClass} />,
+    linkedin: <FaLinkedin className={iconClass} />,
+    github: <FaGithub className={iconClass} />,
   };
   return icons[type] || <span />;
 };
 
-const ContactInfo = ({ formData, personalConfig }) => {
+const ContactInfo = ({ formData, personalConfig, colorConfig }) => {
+  const hasAccentBackground = colorConfig?.mode === "advanced" && 
+                               colorConfig?.accentMode === "accent" && 
+                               colorConfig?.selectedColor;
+  
+  const textColorClass = hasAccentBackground ? "text-white" : "text-slate-600";
+  
   const parts = [
     { v: formData.email, t: "email" },
     { v: formData.phone, t: "phone" },
@@ -32,14 +39,14 @@ const ContactInfo = ({ formData, personalConfig }) => {
 
   const renderElem = (item, idx) => (
     <span key={item.v + idx} className="inline-flex items-center gap-2">
-      <ContactIcon type={item.t} />
-      {item.url ? <a href={item.url}>{item.v}</a> : item.v}
+      <ContactIcon type={item.t} hasAccentBackground={hasAccentBackground} />
+      {item.url ? <a href={item.url} className={hasAccentBackground ? "text-white underline" : ""}>{item.v}</a> : item.v}
     </span>
   );
 
   if (personalConfig?.arrangement === "two") {
     return (
-      <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+      <div className={`mt-3 flex items-center justify-between text-xs ${textColorClass}`}>
         <div className="flex items-center gap-4">
           {parts.map((p, i) => (
             <React.Fragment key={p.v + i}>
@@ -48,7 +55,7 @@ const ContactInfo = ({ formData, personalConfig }) => {
             </React.Fragment>
           ))}
         </div>
-        <div className="flex items-center gap-4 text-slate-600">
+        <div className={`flex items-center gap-4 ${textColorClass}`}>
           {secondary.map((s, i) => (
             <React.Fragment key={s.v + i}>
               {renderElem(s, i)}
@@ -62,7 +69,7 @@ const ContactInfo = ({ formData, personalConfig }) => {
 
   const all = [...parts, ...secondary];
   return (
-    <div className="mt-3 text-xs text-slate-600">
+    <div className={`mt-3 text-xs ${textColorClass}`}>
       {all.map((item, idx) => (
         <React.Fragment key={item.v + idx}>
           {renderElem(item, idx)}

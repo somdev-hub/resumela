@@ -106,8 +106,10 @@ const SignatureSection = ({
             fullWidth
             label="Date"
             name="signatureDate"
+            type="date"
             value={formData.signatureDate}
             onChange={handleInputChange}
+            InputLabelProps={{ shrink: true }}
           />
         </Grid>
       </Grid>

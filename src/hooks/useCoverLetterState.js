@@ -44,6 +44,23 @@ const DEFAULT_PERSONAL_CONFIG = {
   contactStyle: "icon",
 };
 
+const DEFAULT_COLOR_CONFIG = {
+  mode: "basic",
+  accentMode: "accent",
+  selectedColor: null,
+  selectedColorName: "None",
+  customColor: "#6366f1",
+  // Multicolor settings
+  multiPreset: "classic",
+  multiTextColor: "#1f2937",
+  multiBackgroundColor: "#ffffff",
+  multiAccentColor: "#2c3e50",
+  // Multicolor header settings (for advanced mode)
+  multiHeaderTextColor: "#ffffff",
+  multiHeaderBackgroundColor: "#2c3e50",
+  multiHeaderAccentColor: "#ffffff",
+};
+
 const DEFAULT_SELECTED_FONT = {
   family: "PT Serif",
   category: "serif",
@@ -57,12 +74,13 @@ const DEFAULT_LAYOUT_CONFIG = {
   rightColumnWidth: 50,
 };
 
-export { DEFAULT_FORM_DATA, DEFAULT_SPACING_CONFIG, DEFAULT_PERSONAL_CONFIG, DEFAULT_SELECTED_FONT, DEFAULT_LAYOUT_CONFIG };
+export { DEFAULT_FORM_DATA, DEFAULT_SPACING_CONFIG, DEFAULT_PERSONAL_CONFIG, DEFAULT_COLOR_CONFIG, DEFAULT_SELECTED_FONT, DEFAULT_LAYOUT_CONFIG };
 
 export const useCoverLetterState = () => {
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [spacingConfig, setSpacingConfig] = useState(DEFAULT_SPACING_CONFIG);
   const [personalConfig, setPersonalConfig] = useState(DEFAULT_PERSONAL_CONFIG);
+  const [colorConfig, setColorConfig] = useState(DEFAULT_COLOR_CONFIG);
   const [selectedFont, setSelectedFont] = useState(DEFAULT_SELECTED_FONT);
   const [layoutConfig, setLayoutConfig] = useState(DEFAULT_LAYOUT_CONFIG);
   const [activeTab, setActiveTab] = useState("content");
@@ -102,6 +120,8 @@ export const useCoverLetterState = () => {
     setSpacingConfig,
     personalConfig,
     setPersonalConfig,
+    colorConfig,
+    setColorConfig,
     selectedFont,
     setSelectedFont,
     layoutConfig,

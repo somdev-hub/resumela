@@ -10,8 +10,10 @@ const LetterDetailsForm = ({ formData, handleInputChange }) => {
             fullWidth
             label="Date"
             name="date"
+            type="date"
             value={formData.date}
             onChange={handleInputChange}
+            InputLabelProps={{ shrink: true }}
           />
         </Grid>
         <Grid item xs={12} sm={6}>

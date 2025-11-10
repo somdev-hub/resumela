@@ -29,6 +29,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 import { availableSections } from "../customization/AvailableSections";
 import { fontsByCategory } from "../customization/Fonts";
+import ColorSelector from "../components/ColorSelector";
 import ResumeNav from "../components/ResumeNav";
 import firestore from "../firebase/firestore";
 
@@ -71,6 +72,22 @@ const Resume = () => {
       align: "center", // left | center | right
       arrangement: "single", // single | two
       contactStyle: "icon", // icon | bullet | bar
+    },
+    colorConfig: {
+      mode: "basic",
+      accentMode: "accent",
+      selectedColor: null,
+      selectedColorName: "None",
+      customColor: "#6366f1",
+      // Multicolor settings
+      multiPreset: "classic",
+      multiTextColor: "#1f2937",
+      multiBackgroundColor: "#ffffff",
+      multiAccentColor: "#2c3e50",
+      // Multicolor header settings (for advanced mode)
+      multiHeaderTextColor: "#ffffff",
+      multiHeaderBackgroundColor: "#2c3e50",
+      multiHeaderAccentColor: "#ffffff",
     },
     selectedFont: {
       family: "PT Serif",
@@ -1621,6 +1638,20 @@ const Resume = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Color Section */}
+                    <ColorSelector
+                      colorConfig={resume.colorConfig}
+                      setColorConfig={(updater) =>
+                        setResume((prev) => ({
+                          ...prev,
+                          colorConfig:
+                            typeof updater === "function"
+                              ? updater(prev.colorConfig)
+                              : updater,
+                        }))
+                      }
+                    />
 
                     {/* Spacing Section */}
                     <div className="mb-8">

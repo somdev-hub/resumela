@@ -188,7 +188,8 @@ const ExperienceForm = ({
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="Start Date (e.g., Jan 2023)"
+          label="Start Date"
+          type="date"
           value={item.data.startDate || ""}
           onChange={(e) => {
             const start = e.target.value;
@@ -201,12 +202,13 @@ const ExperienceForm = ({
               end ? `${start} - ${end}` : start
             );
           }}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="End Date (e.g., Present)"
+          label="End Date (or type 'Present')"
           value={item.data.endDate || ""}
           onChange={(e) => {
             const end = e.target.value;
@@ -219,6 +221,8 @@ const ExperienceForm = ({
               start ? `${start} - ${end}` : end
             );
           }}
+          type={item.data.endDate?.toLowerCase() === 'present' ? 'text' : 'date'}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
     </Grid>
@@ -370,6 +374,7 @@ const ProjectsForm = ({
         <TextField
           fullWidth
           label="Start Date"
+          type="date"
           value={item.data.startDate || ""}
           onChange={(e) => {
             const start = e.target.value;
@@ -382,12 +387,13 @@ const ProjectsForm = ({
               end ? `${start} - ${end}` : start
             );
           }}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="End Date"
+          label="End Date (or type 'Present')"
           value={item.data.endDate || ""}
           onChange={(e) => {
             const end = e.target.value;
@@ -400,6 +406,8 @@ const ProjectsForm = ({
               start ? `${start} - ${end}` : end
             );
           }}
+          type={item.data.endDate?.toLowerCase() === 'present' ? 'text' : 'date'}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
     </Grid>
@@ -480,10 +488,12 @@ const PublicationForm = ({
       <TextField
         fullWidth
         label="Publication Date"
+        type="date"
         value={item.data.publicationDate || ""}
         onChange={(e) =>
           onUpdate(sectionId, item.id, "publicationDate", e.target.value)
         }
+        InputLabelProps={{ shrink: true }}
       />
     </Grid>
     <Grid item xs={12}>
@@ -562,7 +572,8 @@ const CoursesForm = ({
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="Start Date (e.g., 2020)"
+          label="Start Date"
+          type="date"
           value={item.data.startDate || ""}
           onChange={(e) => {
             const start = e.target.value;
@@ -575,12 +586,13 @@ const CoursesForm = ({
               end ? `${start} - ${end}` : start
             );
           }}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="End Date (e.g., 2024 or Present)"
+          label="End Date (or type 'Present')"
           value={item.data.endDate || ""}
           onChange={(e) => {
             const end = e.target.value;
@@ -593,6 +605,8 @@ const CoursesForm = ({
               start ? `${start} - ${end}` : end
             );
           }}
+          type={item.data.endDate?.toLowerCase() === 'present' ? 'text' : 'date'}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
     </Grid>
@@ -683,7 +697,8 @@ const GenericForm = ({
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="Start Date (e.g., 2020)"
+          label="Start Date"
+          type="date"
           value={item.data.startDate || ""}
           onChange={(e) => {
             const start = e.target.value;
@@ -696,12 +711,13 @@ const GenericForm = ({
               end ? `${start} - ${end}` : start
             );
           }}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField
           fullWidth
-          label="End Date (e.g., 2024 or Present)"
+          label="End Date (or type 'Present')"
           value={item.data.endDate || ""}
           onChange={(e) => {
             const end = e.target.value;
@@ -714,6 +730,8 @@ const GenericForm = ({
               start ? `${start} - ${end}` : end
             );
           }}
+          type={item.data.endDate?.toLowerCase() === 'present' ? 'text' : 'date'}
+          InputLabelProps={{ shrink: true }}
         />
       </Grid>
     </Grid>
