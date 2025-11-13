@@ -25,6 +25,13 @@ const CoverLetterPreview = ({
   const hasAccentBackground = colorConfig?.mode === "advanced" && 
                                colorConfig?.accentMode === "accent" && 
                                colorConfig?.selectedColor;
+  
+  const hasImageBackground = colorConfig?.mode === "advanced" && 
+                              colorConfig?.accentMode === "image" && 
+                              colorConfig?.selectedImage;
+  
+  const isBasicMultiMode = colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi";
+  const isAdvancedMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
 
   const contactLine = useMemo(() => {
     return [formData.email, formData.phone, formData.location]
@@ -45,8 +52,9 @@ const CoverLetterPreview = ({
       { value: formData.github, type: "github", icon: <FaGithub /> },
     ].filter((item) => item.value);
 
-    const isMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
-    const textColor = hasAccentBackground || isMultiMode ? "#ffffff" : "#4b5563";
+    const textColor = hasAccentBackground || isAdvancedMultiMode || hasImageBackground ? "#ffffff" : 
+                     isBasicMultiMode ? colorConfig.multiTextColor || "#4b5563" : 
+                     "#4b5563";
 
     if (personalConfig.contactStyle === "bullet") {
       return (
@@ -94,7 +102,7 @@ const CoverLetterPreview = ({
       >
         {contactItems.map((item, i) => (
           <span key={i} className="inline-flex items-center gap-2">
-            <span className="inline-flex" style={{ fontSize: "0.875em", color: hasAccentBackground || isMultiMode ? "rgba(255,255,255,0.8)" : undefined }}>{item.icon}</span>
+            <span className="inline-flex" style={{ fontSize: "0.875em", color: hasAccentBackground || isAdvancedMultiMode || hasImageBackground ? "rgba(255,255,255,0.8)" : undefined }}>{item.icon}</span>
             <span>{item.value}</span>
           </span>
         ))}
@@ -116,15 +124,33 @@ const CoverLetterPreview = ({
                 width: A4_WIDTH_PX,
                 minHeight: A4_HEIGHT_PX,
                 maxWidth: "100%",
-                background: colorConfig?.mode === "advanced" && 
-                           colorConfig?.accentMode === "multi" && 
+                background: colorConfig?.accentMode === "multi" && 
                            colorConfig?.multiBackgroundColor 
                   ? colorConfig.multiBackgroundColor 
                   : "#fff",
                 boxShadow: "0 6px 18px rgba(15,23,42,0.08)",
-                border: "1px solid rgba(0,0,0,0.06)",
+                border: colorConfig?.mode === "border" && colorConfig?.accentMode === "accent" && colorConfig?.selectedColor
+                  ? `8px solid ${colorConfig.selectedColor}`
+                  : "1px solid rgba(0,0,0,0.06)",
                 borderRadius: 6,
                 boxSizing: "border-box",
+                // Apply border with image pattern for border mode with image
+                ...(colorConfig?.mode === "border" && 
+                    colorConfig?.accentMode === "image" &&
+                    colorConfig?.selectedImage ? {
+                  border: `12px solid transparent`,
+                  borderImage: `url(${colorConfig.selectedImage}) 30 round`,
+                  borderImageSlice: 30,
+                } : {}),
+                // Apply background image for basic image mode (full page)
+                ...(colorConfig?.mode === "basic" &&
+                    colorConfig?.accentMode === "image" && 
+                    colorConfig?.selectedImage ? {
+                  backgroundImage: `linear-gradient(rgba(255, 255, 255, ${1 - (colorConfig.imageOpacity || 0.3)}), rgba(255, 255, 255, ${1 - (colorConfig.imageOpacity || 0.3)})), url(${colorConfig.selectedImage})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                } : {}),
                 ["--resume-font-size"]: `${spacingConfig.fontSize}pt`,
                 ["--resume-line-height"]: spacingConfig.lineHeight,
                 ["--resume-entry-spacing"]: `${spacingConfig.entrySpacing}px`,
@@ -156,7 +182,6 @@ const CoverLetterPreview = ({
                   line-height: 1.05 !important;
                   font-weight: 700 !important;
                   margin: 0 0 0.25rem 0 !important;
-                  color: #000000 !important;
                 }
                 
                 /* Role/Title - Second in hierarchy */
@@ -164,7 +189,6 @@ const CoverLetterPreview = ({
                 .coverletter-preview .resume-role { 
                   font-size: var(--resume-size-role) !important; 
                   line-height: 1.2 !important;
-                  color: #000000 !important;
                   font-style: italic !important;
                   font-weight: 400 !important;
                   margin: 0 0 0.5rem 0 !important;
@@ -181,7 +205,6 @@ const CoverLetterPreview = ({
                 
                 .coverletter-preview p {
                   margin: 0.5rem 0 !important;
-                  color: #1f2937 !important;
                 }
                 
                 .coverletter-preview .letter-header {
@@ -192,7 +215,6 @@ const CoverLetterPreview = ({
                 }
                 
                 .coverletter-preview .letter-body {
-                  color: #1f2937 !important;
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
                 }
@@ -201,7 +223,6 @@ const CoverLetterPreview = ({
                 .coverletter-preview .letter-body span {
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
-                  color: #1f2937 !important;
                 }
                 
                 .coverletter-preview .letter-body ul,
@@ -214,7 +235,6 @@ const CoverLetterPreview = ({
                   margin: 0.25rem 0 !important;
                   font-size: var(--resume-size-body) !important;
                   line-height: var(--resume-line-height) !important;
-                  color: #1f2937 !important;
                 }
                 
                 /* Contact info consistent sizing */
@@ -245,9 +265,23 @@ const CoverLetterPreview = ({
                     marginRight: `-${paddingLR}px`,
                     marginTop: `-${paddingTB}px`,
                     marginBottom: "1.5rem",
-                  } : colorConfig?.mode === "advanced" && 
-                      colorConfig?.accentMode === "multi" ? {
-                    backgroundColor: colorConfig.multiAccentColor || "#2c3e50",
+                  } : isAdvancedMultiMode ? {
+                    backgroundColor: colorConfig.multiHeaderBackgroundColor || colorConfig.multiAccentColor || "#2c3e50",
+                    color: "#ffffff",
+                    padding: "1.5rem",
+                    marginLeft: `-${paddingLR}px`,
+                    marginRight: `-${paddingLR}px`,
+                    marginTop: `-${paddingTB}px`,
+                    marginBottom: "1.5rem",
+                  } : 
+                  // Advanced mode with image: background image in header
+                  colorConfig?.mode === "advanced" && 
+                  colorConfig?.accentMode === "image" &&
+                  colorConfig?.selectedImage ? {
+                    backgroundImage: `linear-gradient(rgba(0, 0, 0, ${colorConfig.imageOpacity || 0.3}), rgba(0, 0, 0, ${colorConfig.imageOpacity || 0.3})), url(${colorConfig.selectedImage})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
                     color: "#ffffff",
                     padding: "1.5rem",
                     marginLeft: `-${paddingLR}px`,
@@ -260,7 +294,9 @@ const CoverLetterPreview = ({
                 <h1 
                   className="resume-name" 
                   style={{
-                    ...(hasAccentBackground || (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi") ? { color: "#ffffff" } : {}),
+                    ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff" } : {}),
+                    ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderTextColor || "#ffffff" } : {}),
+                    ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiTextColor || "#1f2937" } : {}),
                     ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
                   }}
                 >
@@ -269,7 +305,9 @@ const CoverLetterPreview = ({
                 <h2 
                   className="resume-role" 
                   style={{
-                    ...(hasAccentBackground || (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi") ? { color: "#ffffff", opacity: 0.9 } : {}),
+                    ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff", opacity: 0.9 } : {}),
+                    ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderAccentColor || "#d97706" } : {}),
+                    ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiAccentColor || "#2c3e50" } : {}),
                     ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
                   }}
                 >

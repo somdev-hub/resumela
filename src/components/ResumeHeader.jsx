@@ -6,35 +6,62 @@ const ResumeHeader = ({ formData, personalConfig, colorConfig }) => {
                                colorConfig?.accentMode === "accent" && 
                                colorConfig?.selectedColor;
   
-  const isBasicMode = colorConfig?.mode === "basic" && colorConfig?.selectedColor;
-  const isMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
+  const hasImageBackground = colorConfig?.mode === "advanced" && 
+                              colorConfig?.accentMode === "image" && 
+                              colorConfig?.selectedImage;
   
-  // For multicolor mode, use multiTextColor for text
+  const isBasicMode = colorConfig?.mode === "basic" && colorConfig?.selectedColor;
+  const isBasicMultiMode = colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi";
+  const isAdvancedMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
+  
+  // For multicolor mode, use appropriate colors based on mode
   const getNameColor = () => {
-    if (hasAccentBackground) return "#ffffff";
+    if (hasAccentBackground || hasImageBackground) return "#ffffff";
+    if (isBasicMultiMode) return colorConfig.multiTextColor || "#1f2937";
     if (isBasicMode) return colorConfig.selectedColor;
-    if (isMultiMode) return colorConfig.multiTextColor || "#1f2937";
+    if (isAdvancedMultiMode) return colorConfig.multiHeaderTextColor || "#ffffff";
     return null;
   };
   
   const getTitleColor = () => {
-    if (hasAccentBackground) return "#ffffff";
+    if (hasAccentBackground || hasImageBackground) return "#ffffff";
+    if (isBasicMultiMode) return colorConfig.multiAccentColor || "#2c3e50";
     if (isBasicMode) return colorConfig.selectedColor;
-    if (isMultiMode) return colorConfig.multiAccentColor || "#2c3e50";
-    return null;
+    if (isAdvancedMultiMode) return colorConfig.multiHeaderAccentColor || colorConfig.multiHeaderTextColor || "#ffffff";
+    return "#4f46e5"; // Default indigo color
   };
   
+  const getProfilePictureAlignment = () => {
+    switch (personalConfig.align) {
+      case "left":
+        return "justify-start";
+      case "right":
+        return "justify-end";
+      default:
+        return "justify-center"; // Default to center alignment
+    }
+  };
+
   return (
     <div className={personalConfig.align === "center" ? "text-center" : "text-left"}>
+      {formData.photoUrl && (
+        <div className={`flex ${getProfilePictureAlignment()} mb-4`}>
+          <img
+            src={formData.photoUrl}
+            alt="Profile"
+            className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+          />
+        </div>
+      )}
       <h1 
-        className={`resume-name text-3xl font-semibold ${hasAccentBackground ? "text-white" : "text-slate-900"}`}
+        className={`resume-name text-3xl font-semibold ${hasAccentBackground || hasImageBackground ? "text-white" : "text-slate-900"}`}
         style={getNameColor() ? { color: getNameColor() } : {}}
       >
         {formData.fullName || "Your Name"}
       </h1>
       <p 
-        className={`resume-role mt-1 text-sm font-medium ${hasAccentBackground ? "text-white opacity-90" : "text-indigo-600"}`}
-        style={getTitleColor() ? { color: getTitleColor() } : {}}
+        className={`resume-role mt-1 text-sm font-medium ${hasAccentBackground || hasImageBackground ? "text-white opacity-90" : ""}`}
+        style={{ color: getTitleColor() }}
       >
         {formData.title || "Professional Title"}
       </p>

@@ -7,8 +7,8 @@ import {
   FaGithub,
 } from "react-icons/fa";
 
-const ContactIcon = ({ type, hasAccentBackground }) => {
-  const iconClass = hasAccentBackground ? "text-white opacity-80" : "text-slate-500";
+const ContactIcon = ({ type, hasAccentBackground, isAdvancedMultiMode, hasImageBackground }) => {
+  const iconClass = hasAccentBackground || isAdvancedMultiMode || hasImageBackground ? "text-white opacity-80" : "text-slate-500";
   const icons = {
     email: <FaEnvelope className={iconClass} />,
     phone: <FaPhone className={iconClass} />,
@@ -24,7 +24,13 @@ const ContactInfo = ({ formData, personalConfig, colorConfig }) => {
                                colorConfig?.accentMode === "accent" && 
                                colorConfig?.selectedColor;
   
-  const textColorClass = hasAccentBackground ? "text-white" : "text-slate-600";
+  const hasImageBackground = colorConfig?.mode === "advanced" && 
+                              colorConfig?.accentMode === "image" && 
+                              colorConfig?.selectedImage;
+  
+  const isAdvancedMultiMode = colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi";
+  
+  const textColorClass = hasAccentBackground || isAdvancedMultiMode || hasImageBackground ? "text-white" : "text-slate-600";
   
   const parts = [
     { v: formData.email, t: "email" },
@@ -39,8 +45,8 @@ const ContactInfo = ({ formData, personalConfig, colorConfig }) => {
 
   const renderElem = (item, idx) => (
     <span key={item.v + idx} className="inline-flex items-center gap-2">
-      <ContactIcon type={item.t} hasAccentBackground={hasAccentBackground} />
-      {item.url ? <a href={item.url} className={hasAccentBackground ? "text-white underline" : ""}>{item.v}</a> : item.v}
+      <ContactIcon type={item.t} hasAccentBackground={hasAccentBackground} isAdvancedMultiMode={isAdvancedMultiMode} hasImageBackground={hasImageBackground} />
+      {item.url ? <a href={item.url} className={hasAccentBackground || isAdvancedMultiMode || hasImageBackground ? "text-white underline" : ""}>{item.v}</a> : item.v}
     </span>
   );
 

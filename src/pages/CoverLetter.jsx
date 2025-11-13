@@ -244,6 +244,7 @@ const CoverLetter = () => {
       spacingConfig={spacingConfig}
       selectedFont={selectedFont}
       personalConfig={personalConfig}
+      colorConfig={colorConfig}
       combinedPreviewRef={combinedPreviewRef}
     />
   );

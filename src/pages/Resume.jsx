@@ -88,6 +88,10 @@ const Resume = () => {
       multiHeaderTextColor: "#ffffff",
       multiHeaderBackgroundColor: "#2c3e50",
       multiHeaderAccentColor: "#ffffff",
+      // Image settings
+      selectedImage: null,
+      selectedImageId: null,
+      imageOpacity: 0.3,
     },
     selectedFont: {
       family: "PT Serif",
@@ -2137,7 +2141,7 @@ const Resume = () => {
                       }
                       /* Specific element overrides to form a clear hierarchy */
                       .resume-preview .resume-name { font-size: var(--resume-size-name) !important; line-height: 1.05 !important; }
-                      .resume-preview .resume-role { font-size: var(--resume-size-role) !important; color: #000000 !important; font-style: italic !important; }
+                      .resume-preview .resume-role { font-size: var(--resume-size-role) !important; font-style: italic !important; }
                       .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; font-style: italic !important; color: #4B5563 !important; }

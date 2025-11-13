@@ -59,6 +59,10 @@ const DEFAULT_COLOR_CONFIG = {
   multiHeaderTextColor: "#ffffff",
   multiHeaderBackgroundColor: "#2c3e50",
   multiHeaderAccentColor: "#ffffff",
+  // Image settings
+  selectedImage: null,
+  selectedImageId: null,
+  imageOpacity: 0.3,
 };
 
 const DEFAULT_SELECTED_FONT = {

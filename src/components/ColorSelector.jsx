@@ -1,4 +1,5 @@
 import MulticolorSelector from "./MulticolorSelector";
+import ImageSelector from "./ImageSelector";
 
 const ColorSelector = ({ colorConfig, setColorConfig }) => {
   const colorModes = [
@@ -33,7 +34,7 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       accent: "#2c3e50",
       headerText: "#ffffff",
       headerBackground: "#2c3e50",
-      headerAccent: "#ffffff"
+      headerAccent: "#94a3b8"
     },
     {
       name: "Modern Blue",
@@ -42,8 +43,8 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       background: "#f8fafc",
       accent: "#3b82f6",
       headerText: "#ffffff",
-      headerBackground: "#3b82f6",
-      headerAccent: "#ffffff"
+      headerBackground: "#1e40af",
+      headerAccent: "#60a5fa"
     },
     {
       name: "Professional",
@@ -51,9 +52,9 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       text: "#0f172a",
       background: "#ffffff",
       accent: "#1e40af",
-      headerText: "#ffffff",
-      headerBackground: "#1e40af",
-      headerAccent: "#ffffff"
+      headerText: "#f8fafc",
+      headerBackground: "#0f172a",
+      headerAccent: "#3b82f6"
     },
     {
       name: "Elegant",
@@ -61,9 +62,9 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       text: "#18181b",
       background: "#fafafa",
       accent: "#7c3aed",
-      headerText: "#ffffff",
-      headerBackground: "#7c3aed",
-      headerAccent: "#ffffff"
+      headerText: "#faf5ff",
+      headerBackground: "#581c87",
+      headerAccent: "#a78bfa"
     },
     {
       name: "Warm",
@@ -71,9 +72,9 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       text: "#292524",
       background: "#fef3c7",
       accent: "#dc2626",
-      headerText: "#ffffff",
-      headerBackground: "#dc2626",
-      headerAccent: "#ffffff"
+      headerText: "#fef2f2",
+      headerBackground: "#991b1b",
+      headerAccent: "#fca5a5"
     },
     {
       name: "Cool",
@@ -81,9 +82,9 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
       text: "#0c4a6e",
       background: "#e0f2fe",
       accent: "#0891b2",
-      headerText: "#ffffff",
-      headerBackground: "#0891b2",
-      headerAccent: "#ffffff"
+      headerText: "#ecfeff",
+      headerBackground: "#164e63",
+      headerAccent: "#67e8f9"
     },
   ];
 
@@ -183,6 +184,9 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
                     multiTextColor: preset.text,
                     multiBackgroundColor: preset.background,
                     multiAccentColor: preset.accent,
+                    multiHeaderTextColor: preset.headerText,
+                    multiHeaderBackgroundColor: preset.headerBackground,
+                    multiHeaderAccentColor: preset.headerAccent,
                   }))
                 }
                 className={`flex flex-col items-center p-2 rounded-lg border transition ${
@@ -450,8 +454,13 @@ const ColorSelector = ({ colorConfig, setColorConfig }) => {
         </div>
       )}
 
-      {/* Color Selection - Only show if NOT multi mode */}
-      {colorConfig.accentMode !== "multi" && (
+      {/* Image Selector - Show when image accent mode is selected */}
+      {colorConfig.accentMode === "image" && (
+        <ImageSelector colorConfig={colorConfig} setColorConfig={setColorConfig} />
+      )}
+
+      {/* Color Selection - Only show if accent mode (not multi or image) */}
+      {colorConfig.accentMode === "accent" && (
         <div>
           <div className="mb-2 text-sm font-medium text-slate-700">
             Choose Color

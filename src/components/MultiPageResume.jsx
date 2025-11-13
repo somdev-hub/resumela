@@ -437,11 +437,33 @@ const MultiPageResume = ({
           padding: `${resume.spacingConfig.marginTB * 3.78}px ${
             resume.spacingConfig.marginLR * 3.78
           }px`,
-          // Apply background color for multicolor mode
-          ...(resume.colorConfig?.mode === "advanced" && 
-              resume.colorConfig?.accentMode === "multi" && 
+          // Apply background color for multicolor mode (both basic and advanced)
+          ...(resume.colorConfig?.accentMode === "multi" && 
               resume.colorConfig?.multiBackgroundColor ? {
             backgroundColor: resume.colorConfig.multiBackgroundColor,
+          } : {}),
+          // Apply border for border mode with color
+          ...(resume.colorConfig?.mode === "border" && 
+              resume.colorConfig?.accentMode === "accent" &&
+              resume.colorConfig?.selectedColor ? {
+            border: `8px solid ${resume.colorConfig.selectedColor}`,
+          } : {}),
+          // Apply border with image pattern for border mode with image
+          ...(resume.colorConfig?.mode === "border" && 
+              resume.colorConfig?.accentMode === "image" &&
+              resume.colorConfig?.selectedImage ? {
+            border: `12px solid transparent`,
+            borderImage: `url(${resume.colorConfig.selectedImage}) 30 round`,
+            borderImageSlice: 30,
+          } : {}),
+          // Apply background image for basic image mode (full page)
+          ...(resume.colorConfig?.mode === "basic" &&
+              resume.colorConfig?.accentMode === "image" && 
+              resume.colorConfig?.selectedImage ? {
+            backgroundImage: `linear-gradient(rgba(255, 255, 255, ${1 - (resume.colorConfig.imageOpacity || 0.3)}), rgba(255, 255, 255, ${1 - (resume.colorConfig.imageOpacity || 0.3)})), url(${resume.colorConfig.selectedImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
           } : {}),
         }}
       >
@@ -504,6 +526,7 @@ const MultiPageResume = ({
             } ${resume.layoutConfig.headerPosition === "top" ? "" : ""}`}
             style={{ 
               textAlign: resume.personalConfig.align,
+              // Advanced mode with accent: single color header background
               ...(resume.colorConfig?.mode === "advanced" && 
                   resume.colorConfig?.accentMode === "accent" && 
                   resume.colorConfig?.selectedColor ? {
@@ -514,19 +537,47 @@ const MultiPageResume = ({
                 marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
                 marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
                 marginBottom: "1.5rem",
+              } : 
+              // Advanced mode with multi: separate header background color
+              resume.colorConfig?.mode === "advanced" && 
+              resume.colorConfig?.accentMode === "multi" ? {
+                backgroundColor: resume.colorConfig.multiHeaderBackgroundColor || resume.colorConfig.multiAccentColor || "#2c3e50",
+                color: "#ffffff",
+                padding: "1.5rem",
+                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginBottom: "1.5rem",
+              } :
+              // Advanced mode with image: background image in header
+            sumesume.colorConfig?.mode === "advanced" && 
+              resume.colorConfig?.accentMode === "image" &&
+              resume.colorConfig?.selectedImage ? {
+                backgroundImage: `linear-gradient(rgba(0, 0, 0, ${resume.colorConfig.imageOpacity || 0.3}), rgba(0, 0, 0, ${resume.colorConfig.imageOpacity || 0.3})), url(${resume.colorConfig.selectedImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                color: "#ffffff",
+                padding: "1.5rem",
+                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginBottom: "1.5rem",
               } : {})
             }}
           >
-            {resume.formData.photoUrl && (
+            {/* {resume.formData.photoUrl && (
               <div
                 className={`${
                   resume.layoutConfig.headerPosition === "top"
                     ? "h-24 w-24"
                     : "h-20 w-20"
                 } rounded-full overflow-hidden border-2 ${
-                  resume.colorConfig?.mode === "advanced" && 
+                  (resume.colorConfig?.mode === "advanced" && 
                   resume.colorConfig?.accentMode === "accent" && 
-                  resume.colorConfig?.selectedColor ? "border-white" : "border-slate-200"
+                  resume.colorConfig?.selectedColor) ||
+                  (resume.colorConfig?.mode === "advanced" && 
+                  resume.colorConfig?.accentMode === "multi") ? "border-white" : "border-slate-200"
                 } flex-shrink-0`}
               >
                 <img
@@ -535,7 +586,7 @@ const MultiPageResume = ({
                   className="w-full h-full object-cover"
                 />
               </div>
-            )}
+            )} */}
             <div
               className={
                 resume.layoutConfig.headerPosition === "top" ? "" : "flex-1"

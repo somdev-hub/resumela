@@ -8,7 +8,14 @@ const SectionPreview = ({ section, spacingConfig, colorConfig }) => {
     
     switch (colorConfig.mode) {
       case "basic":
-        // Basic: Apply selected color to text only
+        // Basic with multi accent mode
+        if (colorConfig.accentMode === "multi") {
+          return { 
+            color: colorConfig.multiAccentColor || "#2c3e50", 
+            borderColor: colorConfig.multiAccentColor || "#2c3e50" 
+          };
+        }
+        // Basic with single color: Apply selected color to text only
         if (!colorConfig.selectedColor) return {};
         return { color: colorConfig.selectedColor, borderColor: colorConfig.selectedColor };
       case "advanced":
