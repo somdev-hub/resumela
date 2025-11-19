@@ -42,9 +42,12 @@ const ResumeHeader = ({ formData, personalConfig, colorConfig }) => {
     }
   };
 
+  // Only render the internal photo when personal alignment is center.
+  // When alignment is left/right the parent (`MultiPageResume`) will render the photo
+  // as a sibling so flex ordering can place it at the outer edge.
   return (
     <div className={personalConfig.align === "center" ? "text-center" : "text-left"}>
-      {formData.photoUrl && (
+      {formData.photoUrl && personalConfig.align === "center" && (
         <div className={`flex ${getProfilePictureAlignment()} mb-4`}>
           <img
             src={formData.photoUrl}

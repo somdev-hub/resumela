@@ -65,6 +65,7 @@ const MultiPageResume = ({
     resume.layoutConfig,
     resume.spacingConfig,
     resume.formData,
+    resume.personalConfig,
     A4_HEIGHT_PX,
   ]);
 
@@ -185,9 +186,10 @@ const MultiPageResume = ({
 
     // Reserve space for header on first page - be very conservative
     const headerHeight = 200; // Much larger header height estimate
-    const profileHeight = resume.formData.profile ? 150 : 0; // Much larger profile section estimate
+    const hasProfileOrPhoto = resume.formData.profile || resume.formData.photoUrl;
+    const profileHeight = hasProfileOrPhoto ? 150 : 0; // Include photo when estimating
 
-    if (resume.formData.fullName || resume.formData.profile) {
+    if (resume.formData.fullName || hasProfileOrPhoto) {
       currentHeight += headerHeight + profileHeight;
     }
 
@@ -223,11 +225,18 @@ const MultiPageResume = ({
     const newPages = [];
 
     // Reserve space for header on first page
+    const hasProfileOrPhoto = resume.formData.profile || resume.formData.photoUrl;
+    if (hasProfileOrPhoto) {
+      console.log("hello world");
+    }
     const headerHeight = 200;
-    const profileHeight = resume.formData.profile ? 150 : 0;
+    let profileHeight = hasProfileOrPhoto ? 250 : 0;
+    if(hasProfileOrPhoto && (resume.personalConfig?.align === "left" || resume.personalConfig?.align === "right")) {
+      profileHeight = 0;
+    }
     const initialReserved = headerHeight + profileHeight;
 
-    const hasHeader = resume.formData.fullName || resume.formData.profile;
+    const hasHeader = resume.formData.fullName || hasProfileOrPhoto;
     const firstPageAvailable =
       availableHeight - (hasHeader ? initialReserved : 0);
     const subsequentPageAvailable = availableHeight;
@@ -335,14 +344,7 @@ const MultiPageResume = ({
     setPages(
       newPages.length > 0
         ? newPages
-        : [
-            {
-              leftSections: [],
-              rightSections: [],
-              type: "two",
-              headerOnly: true,
-            },
-          ]
+        : [{ sections: [], headerOnly: true }]
     );
   };
 
@@ -359,7 +361,8 @@ const MultiPageResume = ({
     // First page has the full-width section
     const firstSectionHeight = estimateSectionHeight(firstSection);
     const headerHeight = 200; // Much larger header height estimate
-    const profileHeight = resume.formData.profile ? 150 : 0; // Much larger profile estimate
+    const hasProfileOrPhoto = resume.formData.profile || resume.formData.photoUrl;
+    const profileHeight = hasProfileOrPhoto ? 150 : 0; // Include photo when estimating
 
     let currentPage = {
       firstSection: firstSection,
@@ -516,16 +519,19 @@ const MultiPageResume = ({
 
         {/* Header (only on first page) */}
         {isFirstPage && (
-          <div
-            className={`resume-header ${
-              resume.layoutConfig.headerPosition === "left"
-                ? "flex gap-6"
-                : resume.layoutConfig.headerPosition === "right"
-                ? "flex gap-6 flex-row-reverse"
-                : "block"
-            } ${resume.layoutConfig.headerPosition === "top" ? "" : ""}`}
-            style={{ 
-              textAlign: resume.personalConfig.align,
+          (() => {
+            const headerAlign = resume.personalConfig?.align || "center";
+            const headerClass = headerAlign === "left"
+              ? "resume-header flex gap-6 items-center"
+              : headerAlign === "right"
+              ? "resume-header flex gap-6 flex-row-reverse items-center"
+              : "resume-header block";
+
+            return (
+              <div
+                className={headerClass}
+                style={{ 
+                  textAlign: resume.personalConfig.align,
               // Advanced mode with accent: single color header background
               ...(resume.colorConfig?.mode === "advanced" && 
                   resume.colorConfig?.accentMode === "accent" && 
@@ -550,7 +556,7 @@ const MultiPageResume = ({
                 marginBottom: "1.5rem",
               } :
               // Advanced mode with image: background image in header
-            sumesume.colorConfig?.mode === "advanced" && 
+              resume.colorConfig?.mode === "advanced" && 
               resume.colorConfig?.accentMode === "image" &&
               resume.colorConfig?.selectedImage ? {
                 backgroundImage: `linear-gradient(rgba(0, 0, 0, ${resume.colorConfig.imageOpacity || 0.3}), rgba(0, 0, 0, ${resume.colorConfig.imageOpacity || 0.3})), url(${resume.colorConfig.selectedImage})`,
@@ -564,41 +570,36 @@ const MultiPageResume = ({
                 marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
                 marginBottom: "1.5rem",
               } : {})
-            }}
-          >
-            {/* {resume.formData.photoUrl && (
-              <div
-                className={`${
-                  resume.layoutConfig.headerPosition === "top"
-                    ? "h-24 w-24"
-                    : "h-20 w-20"
-                } rounded-full overflow-hidden border-2 ${
-                  (resume.colorConfig?.mode === "advanced" && 
-                  resume.colorConfig?.accentMode === "accent" && 
-                  resume.colorConfig?.selectedColor) ||
-                  (resume.colorConfig?.mode === "advanced" && 
-                  resume.colorConfig?.accentMode === "multi") ? "border-white" : "border-slate-200"
-                } flex-shrink-0`}
+                }}
               >
-                <img
-                  src={resume.formData.photoUrl}
-                  alt="profile"
-                  className="w-full h-full object-cover"
-                />
+                {/* If personal align is left/right, render photo as a sibling so flex places it at the outer edge */}
+                {resume.formData.photoUrl && (headerAlign === "left" || headerAlign === "right") && (
+                  <div
+                    className={`${headerAlign === "top" ? "h-24 w-24" : "h-20 w-20"} rounded-full overflow-hidden border-2 ${
+                      (resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "accent" && resume.colorConfig?.selectedColor) ||
+                      (resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "multi")
+                        ? "border-white"
+                        : "border-slate-200"
+                    } flex-shrink-0`}
+                  >
+                    <img
+                      src={resume.formData.photoUrl}
+                      alt="profile"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                <div className={headerAlign === "center" ? "w-full" : "flex-1"}>
+                  <ResumeHeader
+                    formData={resume.formData}
+                    personalConfig={resume.personalConfig}
+                    colorConfig={resume.colorConfig}
+                  />
+                </div>
               </div>
-            )} */}
-            <div
-              className={
-                resume.layoutConfig.headerPosition === "top" ? "" : "flex-1"
-              }
-            >
-              <ResumeHeader
-                formData={resume.formData}
-                personalConfig={resume.personalConfig}
-                colorConfig={resume.colorConfig}
-              />
-            </div>
-          </div>
+            );
+          })()
         )}
 
         {/* Profile section (only on first page) */}

@@ -959,6 +959,7 @@ const Resume = () => {
         layoutConfig: resumeToSave.layoutConfig,
         spacingConfig: resumeToSave.spacingConfig,
         personalConfig: resumeToSave.personalConfig,
+        colorConfig: resumeToSave.colorConfig,
         selectedFont: resumeToSave.selectedFont,
         sectionOrder: resumeToSave.sectionOrder,
       });
@@ -1350,7 +1351,7 @@ const Resume = () => {
                         </div>
                       </div>
 
-                      <div className="mb-6">
+                      {/* <div className="mb-6">
                         <label className="text-sm font-medium text-slate-700 block mb-3">
                           Header Position
                         </label>
@@ -1382,7 +1383,7 @@ const Resume = () => {
                             </button>
                           ))}
                         </div>
-                      </div>
+                      </div> */}
 
                       <div className="mb-6">
                         <label className="text-sm font-medium text-slate-700 block mb-3">

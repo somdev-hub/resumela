@@ -1,14 +1,29 @@
 import { Box, Grid, TextField, Button, Paper, Stack, Typography } from "@mui/material";
 import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import FormSection from "../FormSection";
-import { useRef } from "react";
+import SignatureDialog from "./SignatureDialog";
+import { useRef, useState } from "react";
+
 
 const SignatureSection = ({
   formData,
   setFormData,
   handleInputChange,
 }) => {
-  const signatureInputRef = useRef(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Handler for dialog close and update
+  const handleDialogClose = (result) => {
+    setDialogOpen(false);
+    if (result && result.name) {
+      setFormData((prev) => ({
+        ...prev,
+        signatureName: result.name,
+        signatureFont: result.selectedFont,
+        signatureImage: null, // You may want to generate an image from text+font, or just store text/font
+      }));
+    }
+  };
 
   return (
     <FormSection title="Signature">
@@ -24,19 +39,23 @@ const SignatureSection = ({
             bgcolor: "background.default",
           }}
         >
-          {formData.signatureImage ? (
-            <img
-              src={formData.signatureImage}
-              alt="signature"
+          {formData.signatureName ? (
+            <Typography
+              variant="h5"
               style={{
+                fontFamily: formData.signatureFont || "inherit",
+                border: "none",
+                padding: "0",
                 maxHeight: 60,
                 maxWidth: "100%",
                 objectFit: "contain",
               }}
-            />
+            >
+              {formData.signatureName}
+            </Typography>
           ) : (
             <Typography variant="body2" color="text.disabled">
-              No signature uploaded
+              No signature added
             </Typography>
           )}
         </Paper>
@@ -44,7 +63,7 @@ const SignatureSection = ({
           <Button
             size="small"
             startIcon={<EditIcon />}
-            onClick={() => signatureInputRef.current?.click()}
+            onClick={() => setDialogOpen(true)}
           >
             Edit
           </Button>
@@ -57,42 +76,22 @@ const SignatureSection = ({
                 ...prev,
                 signatureImage: null,
                 signatureName: "",
+                signatureFont: "",
                 signaturePlace: "",
                 signatureDate: "",
               }));
-              if (signatureInputRef.current) signatureInputRef.current.value = null;
             }}
           >
             Delete
           </Button>
         </Stack>
-        <input
-          ref={signatureInputRef}
-          type="file"
-          accept="image/*"
-          onChange={(event) => {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              setFormData((prev) => ({ ...prev, signatureImage: e.target.result }));
-            };
-            reader.readAsDataURL(file);
-          }}
-          style={{ display: "none" }}
-        />
       </Box>
+      <SignatureDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+      />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={4}>
-          <TextField
-            fullWidth
-            label="Full name"
-            name="signatureName"
-            value={formData.signatureName}
-            onChange={handleInputChange}
-          />
-        </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             label="Place"
@@ -101,7 +100,7 @@ const SignatureSection = ({
             onChange={handleInputChange}
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             label="Date"

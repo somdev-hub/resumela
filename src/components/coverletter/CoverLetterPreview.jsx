@@ -254,9 +254,9 @@ const CoverLetterPreview = ({
               />
 
               {/* Header */}
-              <div 
-                className="letter-header"
-                style={{
+              {(() => {
+                const headerAlign = personalConfig?.align || "center";
+                const headerStyle = {
                   ...(hasAccentBackground ? {
                     backgroundColor: colorConfig.selectedColor,
                     color: "#ffffff",
@@ -289,37 +289,70 @@ const CoverLetterPreview = ({
                     marginTop: `-${paddingTB}px`,
                     marginBottom: "1.5rem",
                   } : {})
-                }}
-              >
-                <h1 
-                  className="resume-name" 
-                  style={{
-                    ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff" } : {}),
-                    ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderTextColor || "#ffffff" } : {}),
-                    ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiTextColor || "#1f2937" } : {}),
-                    ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
-                  }}
-                >
-                  {formData.fullName || "Your Name"}
-                </h1>
-                <h2 
-                  className="resume-role" 
-                  style={{
-                    ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff", opacity: 0.9 } : {}),
-                    ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderAccentColor || "#d97706" } : {}),
-                    ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiAccentColor || "#2c3e50" } : {}),
-                    ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
-                  }}
-                >
-                  {formData.title || "Professional Title"}
-                </h2>
-                {contactLine && renderContactInfo()}
-                {/* {secondaryLine && (
-                  <p style={{ color: "#4f46e5", marginTop: "0.25rem" }}>
-                    {secondaryLine}
-                  </p>
-                )} */}
-              </div>
+                };
+
+                const headerClass = headerAlign === "left"
+                  ? "letter-header flex gap-6 items-center"
+                  : headerAlign === "right"
+                  ? "letter-header flex gap-6 flex-row-reverse items-center"
+                  : "letter-header";
+
+                return (
+                  <div className={headerClass} style={headerStyle}>
+                    {/* If align is left/right render photo as sibling so flex places at edge */}
+                    {formData.photoUrl && (headerAlign === "left" || headerAlign === "right") && (
+                      <div className={`${headerAlign === "left" || headerAlign === "right" ? "h-20 w-20" : "h-24 w-24"} rounded-full overflow-hidden border-2 ${
+                        (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "accent" && colorConfig?.selectedColor) ||
+                        (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi")
+                          ? "border-white"
+                          : "border-slate-200"
+                      } flex-shrink-0`}>
+                        <img src={formData.photoUrl} alt="profile" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    <div className={headerAlign === "center" ? "w-full text-center" : "flex-1"}>
+                      {/** When centered, show photo inside header above name/title **/}
+                      {formData.photoUrl && headerAlign === "center" && (
+                        <div className="mb-4 flex justify-center">
+                          <div className={`h-24 w-24 rounded-full overflow-hidden border-2 ${
+                            (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "accent" && colorConfig?.selectedColor) ||
+                            (colorConfig?.mode === "advanced" && colorConfig?.accentMode === "multi")
+                              ? "border-white"
+                              : "border-slate-200"
+                          }`}>
+                            <img src={formData.photoUrl} alt="profile" className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                      )}
+
+                      <h1 
+                        className="resume-name" 
+                        style={{
+                          ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff" } : {}),
+                          ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderTextColor || "#ffffff" } : {}),
+                          ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiTextColor || "#1f2937" } : {}),
+                          ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
+                        }}
+                      >
+                        {formData.fullName || "Your Name"}
+                      </h1>
+                      <h2 
+                        className="resume-role" 
+                        style={{
+                          ...(hasAccentBackground || hasImageBackground ? { color: "#ffffff", opacity: 0.9 } : {}),
+                          ...(isAdvancedMultiMode ? { color: colorConfig.multiHeaderAccentColor || "#d97706" } : {}),
+                          ...(colorConfig?.mode === "basic" && colorConfig?.accentMode === "multi" ? { color: colorConfig.multiAccentColor || "#2c3e50" } : {}),
+                          ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor ? { color: colorConfig.selectedColor } : {})
+                        }}
+                      >
+                        {formData.title || "Professional Title"}
+                      </h2>
+                      {contactLine && renderContactInfo()}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Letter Body */}
               <div className="letter-body mt-8">
@@ -365,6 +398,7 @@ const CoverLetterPreview = ({
                     style={{
                       fontWeight: 600,
                       marginTop: formData.signatureImage ? 0 : "0.5rem",
+                      fontFamily: formData.signatureFont || undefined,
                     }}
                   >
                     {formData.signatureName || formData.fullName}
