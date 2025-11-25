@@ -1,0 +1,78 @@
+
+.entry-layout-customizer {
+  margin-bottom: 2rem;
+}
+.entry-layout-customizer h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1.2rem;
+}
+.layout-options {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.layout-options button {
+  background: #fff;
+  border: 2px solid #d1c4e9;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-size: 1.25rem;
+  color: #334155;
+}
+.layout-options button.selected {
+  border-color: #7c4dff;
+  box-shadow: 0 0 0 2px #ede7f6;
+  color: #7c4dff;
+}
+.layout-icon {
+  font-size: 1.5rem;
+}
+.section {
+  margin-bottom: 1.2rem;
+}
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+.size-options,
+.subtitle-style-options,
+.subtitle-placement-options,
+.list-style-options,
+.display-options {
+  display: flex;
+  gap: 0.7rem;
+}
+.size-options button,
+.subtitle-style-options button,
+.subtitle-placement-options button,
+.list-style-options button,
+.display-options button {
+  background: #fff;
+  border: 2px solid #d1c4e9;
+  border-radius: 8px;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #334155;
+  font-weight: 400;
+  transition: border-color 0.2s, color 0.2s;
+}
+.size-options button.selected,
+.subtitle-style-options button.selected,
+.subtitle-placement-options button.selected,
+.list-style-options button.selected,
+.display-options button.selected {
+  border-color: #7c4dff;
+  color: #7c4dff;
+  font-weight: 500;
+}
+input[type="checkbox"] {
+  accent-color: #7c4dff;
+  margin-right: 0.5rem;
+}

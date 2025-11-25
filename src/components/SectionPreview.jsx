@@ -1,280 +1,542 @@
-import React from "react";
 import LinkIcon from "@mui/icons-material/Link";
 
-const SectionPreview = ({ section, spacingConfig, colorConfig }) => {
-  // Helper to get color styles based on colorConfig
+const SectionPreview = ({
+  section,
+  spacingConfig,
+  colorConfig,
+  entryLayoutConfig,
+  columnConfig,
+}) => {
+  // Calculate size multiplier for title/subtitle based on size setting
+  const getSizeMultiplier = () => {
+    const size = entryLayoutConfig?.size || "S";
+    switch (size) {
+      case "S":
+        return 0.9;
+      case "M":
+        return 1;
+      case "L":
+        return 1.1;
+      default:
+        return 1;
+    }
+  };
+
+  // Get subtitle font style
+  const getSubtitleFontStyle = () => {
+    const style = entryLayoutConfig?.subtitleStyle || "Normal";
+    switch (style) {
+      case "Bold":
+        return { fontWeight: "700", fontStyle: "normal" };
+      case "Italic":
+        return { fontWeight: "400", fontStyle: "italic" };
+      case "Normal":
+      default:
+        return { fontWeight: "400", fontStyle: "normal" };
+    }
+  };
+
+  // Get description indent style
+  const getDescriptionIndentStyle = () => {
+    const indentBody = entryLayoutConfig?.indentBody || false;
+    return indentBody ? { marginLeft: "1rem", paddingLeft: "0.5rem", borderLeft: "2px solid #e2e8f0" } : {};
+  };
+
+  // Color styles logic
   const getColorStyles = () => {
     if (!colorConfig) return {};
-    
-    switch (colorConfig.mode) {
+    const { mode, accentMode, multiAccentColor, selectedColor } = colorConfig;
+    const accent =
+      accentMode === "multi"
+        ? multiAccentColor || "#2c3e50"
+        : selectedColor || "#2c3e50";
+    switch (mode) {
       case "basic":
-        // Basic with multi accent mode
-        if (colorConfig.accentMode === "multi") {
-          return { 
-            color: colorConfig.multiAccentColor || "#2c3e50", 
-            borderColor: colorConfig.multiAccentColor || "#2c3e50" 
-          };
-        }
-        // Basic with single color: Apply selected color to text only
-        if (!colorConfig.selectedColor) return {};
-        return { color: colorConfig.selectedColor, borderColor: colorConfig.selectedColor };
       case "advanced":
-        // Advanced with multi accent mode
-        if (colorConfig.accentMode === "multi") {
-          return { 
-            color: colorConfig.multiAccentColor || "#2c3e50", 
-            borderColor: colorConfig.multiAccentColor || "#2c3e50" 
-          };
-        }
-        // Advanced with accent mode: Apply color to section headings (not header - it already has background)
-        if (!colorConfig.selectedColor) return {};
-        return { color: colorConfig.selectedColor, borderColor: colorConfig.selectedColor };
+        return accentMode === "multi"
+          ? { color: accent, borderColor: accent }
+          : selectedColor
+          ? { color: selectedColor, borderColor: selectedColor }
+          : {};
       case "border":
-        // Border: Keep text black, apply color to border only
-        if (!colorConfig.selectedColor) return {};
-        return { borderColor: colorConfig.selectedColor, color: "#1f2937" };
+        return selectedColor
+          ? { borderColor: selectedColor, color: "#1f2937" }
+          : {};
       default:
         return {};
     }
   };
 
-  const colorStyles = getColorStyles();
-  // Helper: extract list items from HTML produced by the RichTextEditor.
-  // If no <li> elements are present, fall back to splitting plain text by commas/newlines/pipes.
+  // Get list style bullet/marker
+  const getListBullet = () => {
+    const style = entryLayoutConfig?.listStyle || "Bullet";
+    return style === "Bullet" ? "•" : "–";
+  };
+
+  // Extract skills from HTML
   const extractSkills = (html) => {
     if (!html) return [];
     try {
       const tmp = document.createElement("div");
       tmp.innerHTML = html;
       const lis = tmp.querySelectorAll("li");
-      if (lis && lis.length) {
+      if (lis.length)
         return Array.from(lis)
           .map((li) => li.textContent.trim())
           .filter(Boolean);
-      }
-      // fallback: use text content and split by common separators
-      const text = tmp.textContent || "";
-      return text
+      return (tmp.textContent || "")
         .split(/[,|\n\r•\u2022]+/)
         .map((s) => s.trim())
         .filter(Boolean);
-    } catch (e) {
+    } catch {
       return [];
     }
   };
 
+  // Helper for rendering title with link
+  const renderTitle = (title, titleUrl, isCert, hasDescription) => {
+    const sizeMultiplier = getSizeMultiplier();
+    const titleFontSize = sizeMultiplier > 1 ? `${1.125 * sizeMultiplier}rem` : sizeMultiplier < 1 ? `${0.875 * sizeMultiplier}rem` : "0.875rem";
+    
+    return isCert && !hasDescription ? (
+      <p
+        className="resume-item-description text-slate-700"
+        style={{ display: "flex", alignItems: "center", fontSize: titleFontSize }}
+      >
+        <span style={{ marginRight: "0.5rem" }}>{getListBullet()}</span>
+        {titleUrl ? (
+          <a
+            href={titleUrl}
+            className="hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontWeight: "normal" }}
+          >
+            {title}
+            <LinkIcon
+              fontSize="small"
+              style={{
+                verticalAlign: "middle",
+                marginLeft: 4,
+                opacity: 0.6,
+              }}
+            />
+          </a>
+        ) : (
+          <span style={{ fontWeight: "normal" }}>{title}</span>
+        )}
+      </p>
+    ) : (
+      <h3 className="resume-item-title font-bold text-slate-900" style={{ fontSize: titleFontSize }}>
+        {titleUrl ? (
+          <a
+            href={titleUrl}
+            className="hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {title}
+            <LinkIcon
+              fontSize="small"
+              style={{
+                verticalAlign: "middle",
+                marginLeft: 6,
+                opacity: 0.6,
+              }}
+            />
+          </a>
+        ) : (
+          title
+        )}
+      </h3>
+    );
+  };
+
+  // Helper for rendering title with subtitle on same line (separated by comma)
+  const renderTitleWithSubtitle = (title, subtitle, titleUrl, isCert, hasDescription) => {
+    const sizeMultiplier = getSizeMultiplier();
+    const titleFontSize = sizeMultiplier > 1 ? `${1.125 * sizeMultiplier}rem` : sizeMultiplier < 1 ? `${0.875 * sizeMultiplier}rem` : "0.875rem";
+    const subtitleFontSize = sizeMultiplier > 1 ? `${0.875 * sizeMultiplier}rem` : sizeMultiplier < 1 ? `${0.75 * sizeMultiplier}rem` : "0.875rem";
+    const subtitleStyle = getSubtitleFontStyle();
+    
+    return isCert && !hasDescription ? (
+      <p
+        className="resume-item-description text-slate-700"
+        style={{ display: "flex", alignItems: "center", fontSize: titleFontSize, flexWrap: "wrap" }}
+      >
+        <span style={{ marginRight: "0.5rem" }}>{getListBullet()}</span>
+        {titleUrl ? (
+          <a
+            href={titleUrl}
+            className="hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontWeight: "normal" }}
+          >
+            {title}
+            <LinkIcon
+              fontSize="small"
+              style={{
+                verticalAlign: "middle",
+                marginLeft: 4,
+                opacity: 0.6,
+              }}
+            />
+          </a>
+        ) : (
+          <span style={{ fontWeight: "normal" }}>{title}</span>
+        )}
+        {subtitle && (
+          <>
+            <span style={{ margin: "0 0.25rem" }}>,</span>
+            <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, display: "inline" }}>{subtitle}</span>
+          </>
+        )}
+      </p>
+    ) : (
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "0.25rem", width: "100%" }}>
+          <h3 className="resume-item-title font-bold text-slate-900" style={{ fontSize: titleFontSize, margin: 0, display: "inline-block" }}>
+            {titleUrl ? (
+              <a
+                href={titleUrl}
+                className="hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {title}
+                <LinkIcon
+                  fontSize="small"
+                  style={{
+                    verticalAlign: "middle",
+                    marginLeft: 6,
+                    opacity: 0.6,
+                  }}
+                />
+              </a>
+            ) : (
+              title
+            )}
+          </h3>
+          {subtitle && (
+            <>
+              <span style={{ fontSize: titleFontSize, display: "inline" }}>
+                ,
+              </span>
+              <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, margin: 0, display: "inline-block" }}>
+                {subtitle}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Helper for rendering subtitle/publication (only when on its own line)
+  const renderSubtitleOrPublication = (item, isPublication) => {
+    const sizeMultiplier = getSizeMultiplier();
+    const subtitleFontSize = sizeMultiplier > 1 ? `${0.875 * sizeMultiplier}rem` : sizeMultiplier < 1 ? `${0.75 * sizeMultiplier}rem` : "0.875rem";
+    const subtitleStyle = getSubtitleFontStyle();
+    
+    return isPublication ? (
+      <>
+        {item.data.publisher && (
+          <p className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize }}>
+            {item.data.publisher}
+          </p>
+        )}
+        {item.data.publicationDate && (
+          <p className="resume-item-description text-xs text-slate-600">
+            {item.data.publicationDate}
+          </p>
+        )}
+      </>
+    ) : (
+      item.data.subtitle && (
+        <p 
+          className="resume-item-subtitle text-slate-700" 
+          style={{ 
+            ...subtitleStyle, 
+            fontSize: subtitleFontSize,
+            // marginTop: "0.25rem",
+            marginBottom: "0.25rem"
+          }}
+        >
+          {item.data.subtitle}
+        </p>
+      )
+    );
+  };
+
+  // Main render
   return (
     <div className="mb-2">
-      <h2 
+      <h2
         className="resume-section-heading text-lg font-bold border-b-2 mb-2"
-        style={colorStyles}
+        style={getColorStyles()}
       >
         {section.name.toUpperCase()}
       </h2>
       <div>
         {section.items
-          .filter((item) => Object.prototype.hasOwnProperty.call(item, "visible") ? !!item.visible : true)
+          .filter((item) =>
+            Object.prototype.hasOwnProperty.call(item, "visible")
+              ? !!item.visible
+              : true
+          )
           .map((item) => {
-          // Special rendering for skills: show "Category — skill1 | skill2 | ..."
-          const sectionId = (section.id || "").toString().toLowerCase();
-          const sectionName = (section.name || "").toString().toLowerCase();
+            const sectionId = (section.id || "").toLowerCase();
+            const sectionName = (section.name || "").toLowerCase();
+            const isSkill =
+              sectionId.includes("skill") || sectionName.includes("skill");
+            const isCert =
+              sectionId.includes("certif") || sectionName.includes("certif");
+            const isEducation =
+              sectionId.includes("educa") || sectionName.includes("educa");
+            const isPublication =
+              sectionId.includes("publication") ||
+              sectionName.includes("publication");
+            const hasDescription =
+              !!item.data.description && !!item.data.description.trim();
 
-          // Treat any section whose id or name contains "skill" as the skills section
-          if (sectionId.includes("skill") || sectionName.includes("skill")) {
-            const skills = extractSkills(item.data.description || "");
-            // Always render skills as inline plain text. If no explicit list items found,
-            // extractSkills will split by common separators from the plain text content.
-            const inlineText = skills.length ? skills.join(" | ") : "";
-            return (
-              <div key={item.id} className="resume-entry-less-margin">
-                {item.data.title && (
-                  <span className="resume-item-title font-bold text-slate-900 inline">
-                    {item.data.titleUrl ? (
-                      <a
-                        href={item.data.titleUrl}
-                        className="hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.data.title}
-                      </a>
-                    ) : (
-                      item.data.title
-                    )}
-                    {inlineText && (
-                      <>
-                        <span className="mx-2">—</span>
-                      </>
-                    )}
-                  </span>
-                )}
-                {/* Render skills as inline spans so they wrap naturally instead of forcing a new paragraph line */}
-                {skills.length > 0 && (
-                  <span
-                    className="resume-item-description text-sm text-slate-700"
-                    style={{
-                      lineHeight: spacingConfig.lineHeight,
-                      whiteSpace: "normal",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    {skills.map((sk, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          whiteSpace: "normal",
-                          fontSize: "9pt",
-                          fontWeight: "normal",
-                        }}
-                      >
-                        {idx > 0 && (
-                          <span
-                            className="delimiter"
-                            style={{
-                              padding: "0 0.15em",
-                              verticalAlign: "middle",
-                              display: "inline-block",
-                              opacity: 0.6,
-                            }}
-                          >
+            // Skills section
+            if (isSkill) {
+              const skills = extractSkills(item.data.description || "");
+              const bullet = getListBullet();
+              return (
+                <div key={item.id} className="resume-entry-less-margin">
+                  {item.data.title && (
+                    <span className="resume-item-title font-bold text-slate-900 inline">
+                      {item.data.titleUrl ? (
+                        <a
+                          href={item.data.titleUrl}
+                          className="hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {item.data.title}
+                        </a>
+                      ) : (
+                        item.data.title
+                      )}
+                      {skills.length > 0 && <span className="mx-2">—</span>}
+                    </span>
+                  )}
+                  {skills.length > 0 && (
+                    <span
+                      className="resume-item-description text-sm text-slate-700"
+                      style={{
+                        lineHeight: spacingConfig.lineHeight,
+                        whiteSpace: "normal",
+                        overflowWrap: "break-word",
+                      }}
+                    >
+                      {skills.map((sk, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            whiteSpace: "normal",
+                            fontSize: "9pt",
+                            fontWeight: "normal",
+                          }}
+                        >
+                          {idx > 0 && (
                             <span
+                              className="delimiter"
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                marginBottom: "0.25em",
-                                marginTop: "1px",
+                                padding: "0 0.15em",
+                                verticalAlign: "middle",
+                                display: "inline-block",
+                                opacity: 0.6,
                               }}
                             >
-                              |
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  marginBottom: "0.25em",
+                                  marginTop: "1px",
+                                }}
+                              >
+                                {bullet}
+                              </span>
                             </span>
-                          </span>
-                        )}
-                        {idx > 0 ? <>&nbsp;{sk}</> : sk}
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </div>
-            );
-          }
+                          )}
+                          {idx > 0 ? <>&nbsp;{sk}</> : sk}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+              );
+            }
 
-          // Default rendering for non-skills sections
-          const isCert =
-            sectionId.includes("certif") || sectionName.includes("certif");
-          const hasDescription = Boolean(
-            item.data.description && item.data.description.trim()
-          );
-          const isEducation =
-            sectionId.includes("educa") || sectionName.includes("educa");
-
-          return (
-            <div
-              key={item.id}
-              className={`resume-entry ${
-                isCert && !hasDescription ? "resume-entry-no-margin" : ""
-              }`}
-            >
-              {item.data.title &&
-                // For certificates without a description render a simple bullet + normal-weight title
-                (isCert && !hasDescription ? (
-                  <p
-                    className="resume-item-description text-sm text-slate-700"
-                    style={{ display: "flex", alignItems: "center" }}
+            // Only handle con-date-loc and default layout
+            const entryOrder = entryLayoutConfig?.entryOrder || [
+              "content",
+              "date",
+              "location",
+            ];
+            const orderKey = entryOrder.join(",");
+            if (orderKey === "content,date,location") {
+              // con-date-loc: inline only for one-column, newline for others
+              // For one-column: use the conDateLocDisplay setting (inline/newline)
+              // For multi-column: always use newline
+              const isOneColumn = !Array.from(["two","mix"]).includes(columnConfig);
+              const conDateLocDisplay = isOneColumn
+                ? (entryLayoutConfig?.conDateLocDisplay || "inline")
+                : "newline"; // Force newline for multi-column
+              if (conDateLocDisplay === "newline") {
+                // Newline: content on first line, date/location on second line
+                const subtitlePlacement = entryLayoutConfig?.subtitlePlacement || "Next Line";
+                return (
+                  <div
+                    key={item.id}
+                    className={`resume-entry ${
+                      isCert && !hasDescription ? "resume-entry-no-margin" : ""
+                    }`}
                   >
-                    <span style={{ marginRight: "0.5rem" }}>•</span>
-                    {item.data.titleUrl ? (
-                      <a
-                        href={item.data.titleUrl}
-                        className="hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontWeight: "normal" }}
-                      >
-                        {item.data.title}
-                        <LinkIcon
-                          fontSize="small"
-                          style={{
-                            verticalAlign: "middle",
-                            marginLeft: 4,
-                            opacity: 0.6,
-                          }}
-                        />
-                      </a>
-                    ) : (
-                      <span style={{ fontWeight: "normal" }}>
-                        {item.data.title}
+                    <div>
+                      {item.data.title &&
+                        (subtitlePlacement === "Try Same Line" && item.data.subtitle
+                          ? renderTitleWithSubtitle(
+                              item.data.title,
+                              item.data.subtitle,
+                              item.data.titleUrl,
+                              isCert,
+                              hasDescription
+                            )
+                          : renderTitle(
+                              item.data.title,
+                              item.data.titleUrl,
+                              isCert,
+                              hasDescription
+                            ))}
+                      {subtitlePlacement === "Next Line" && renderSubtitleOrPublication(item, isPublication)}
+                    </div>
+                    {(item.data.date || item.data.location) && (
+                      <div className="flex justify-between items-center w-full mt-1">
+                        <span className="resume-item-description text-xs text-slate-600">
+                          {item.data.date}
+                          {item.data.location && item.data.date ? " | " : ""}
+                          {item.data.location}
+                        </span>
+                      </div>
+                    )}
+                    {item.data.description && (
+                      <div
+                        className={`resume-item-description text-sm text-slate-700 ${
+                          isEducation ? "mt-0" : "mt-1"
+                        }`}
+                        style={{ lineHeight: spacingConfig.lineHeight, ...getDescriptionIndentStyle() }}
+                        dangerouslySetInnerHTML={{
+                          __html: item.data.description,
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              } else if (
+                conDateLocDisplay === "inline"
+              ) {
+                // Inline: content left, date/location right
+                const subtitlePlacement = entryLayoutConfig?.subtitlePlacement || "Next Line";
+                return (
+                  <div
+                    key={item.id}
+                    className={`resume-entry ${
+                      isCert && !hasDescription ? "resume-entry-no-margin" : ""
+                    }`}
+                  >
+                    <div className="flex justify-between items-start w-full">
+                      <div className="flex-1">
+                        {item.data.title &&
+                          (subtitlePlacement === "Try Same Line" && item.data.subtitle
+                            ? renderTitleWithSubtitle(
+                                item.data.title,
+                                item.data.subtitle,
+                                item.data.titleUrl,
+                                isCert,
+                                hasDescription
+                              )
+                            : renderTitle(
+                                item.data.title,
+                                item.data.titleUrl,
+                                isCert,
+                                hasDescription
+                              ))}
+                        {subtitlePlacement === "Next Line" && renderSubtitleOrPublication(item, isPublication)}
+                      </div>
+                      <span className="resume-item-description text-xs text-slate-600 text-right ml-4">
+                        {item.data.date}
+                        {item.data.location && item.data.date ? " | " : ""}
+                        {item.data.location}
                       </span>
+                    </div>
+                    {item.data.description && (
+                      <div
+                        className={`resume-item-description text-sm text-slate-700 ${
+                          isEducation ? "mt-0" : "mt-1"
+                        }`}
+                        style={{ lineHeight: spacingConfig.lineHeight, ...getDescriptionIndentStyle() }}
+                        dangerouslySetInnerHTML={{
+                          __html: item.data.description,
+                        }}
+                      />
                     )}
-                  </p>
-                ) : (
-                  // Default: bold title (works for certificates with descriptions and other sections)
-                  <h3 className="resume-item-title font-bold text-slate-900">
-                    {item.data.titleUrl ? (
-                      <a
-                        href={item.data.titleUrl}
-                        className="hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {item.data.title}
-                        <LinkIcon
-                          fontSize="small"
-                          style={{
-                            verticalAlign: "middle",
-                            marginLeft: 6,
-                            opacity: 0.6,
-                          }}
-                        />
-                      </a>
-                    ) : (
-                      item.data.title
-                    )}
-                  </h3>
-                ))}
-              {/* Publication entries use publisher and publicationDate fields */}
-              {sectionId.includes("publication") ||
-              sectionName.includes("publication") ? (
-                <>
-                  {item.data.publisher && (
-                    <p className="resume-item-subtitle text-sm italic text-slate-700">
-                      {item.data.publisher}
-                    </p>
-                  )}
-                  {item.data.publicationDate && (
-                    <p className="resume-item-description text-xs text-slate-600">
-                      {item.data.publicationDate}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <>
-                  {item.data.subtitle && (
-                    <p className="resume-item-subtitle text-sm italic text-slate-700">
-                      {item.data.subtitle}
-                    </p>
-                  )}
-                  {(item.data.date || item.data.location) && (
+                  </div>
+                );
+              }
+            } else {
+              // Default layout (fallback)
+              const subtitlePlacement = entryLayoutConfig?.subtitlePlacement || "Next Line";
+              return (
+                <div
+                  key={item.id}
+                  className={`resume-entry ${
+                    isCert && !hasDescription ? "resume-entry-no-margin" : ""
+                  }`}
+                >
+                  {item.data.title &&
+                    (subtitlePlacement === "Try Same Line" && item.data.subtitle
+                      ? renderTitleWithSubtitle(
+                          item.data.title,
+                          item.data.subtitle,
+                          item.data.titleUrl,
+                          isCert,
+                          hasDescription
+                        )
+                      : renderTitle(
+                          item.data.title,
+                          item.data.titleUrl,
+                          isCert,
+                          hasDescription
+                        ))}
+                  {subtitlePlacement === "Next Line" && renderSubtitleOrPublication(item, isPublication)}
+                  {(item.data.date || item.data.location) && !isPublication && (
                     <p className="resume-item-description text-xs text-slate-600">
                       {[item.data.date, item.data.location]
                         .filter(Boolean)
                         .join(" | ")}
                     </p>
                   )}
-                </>
-              )}
-              {item.data.description && (
-                <div
-                  className={`resume-item-description text-sm text-slate-700 ${
-                    isEducation ? "mt-0" : "mt-1"
-                  }`}
-                  style={{ lineHeight: spacingConfig.lineHeight }}
-                  dangerouslySetInnerHTML={{ __html: item.data.description }}
-                />
-              )}
-            </div>
-          );
-        })}
+                  {item.data.description && (
+                    <div
+                      className={`resume-item-description text-sm text-slate-700 ${
+                        isEducation ? "mt-0" : "mt-1"
+                      }`}
+                      style={{ lineHeight: spacingConfig.lineHeight, ...getDescriptionIndentStyle() }}
+                      dangerouslySetInnerHTML={{
+                        __html: item.data.description,
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            }
+          })}
       </div>
     </div>
   );

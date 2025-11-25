@@ -418,7 +418,10 @@ const Home = () => {
         </DialogActions>
       </Dialog>
 
-      <Cards />
+      <Cards 
+        newResume={()=>handleCreateDirectly("resume")}
+        newCoverLetter={()=>handleCreateDirectly("cover")}
+      />
 
       {/* Your Documents Section */}
       <div className="mt-12 w-full max-w-6xl px-4">

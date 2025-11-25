@@ -20,7 +20,7 @@ import {
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
 } from "@mui/icons-material";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   saveCoverLetterContent,
   saveCoverLetterLayout,
@@ -43,7 +43,6 @@ import { exportCoverLetterToPDF } from "../utils/CoverLetterExporter";
 const CoverLetter = () => {
   const [syncWithResume, setSyncWithResume] = useState(true);
   const params = useParams();
-  const navigate = useNavigate();
   const pdfPreviewRef = useRef(null);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -88,7 +87,6 @@ const CoverLetter = () => {
   const autosaveTimerRef = useRef(null);
   const pendingSaveRef = useRef({});
   const lastSavedSignatureRef = useRef(null);
-  const hasUserEditedRef = useRef(false); // Track if user has made any edits
 
   const showSnackbar = (severity, text, timeout = 3000) => {
     setSnackbarMsg(text);
@@ -420,7 +418,7 @@ const CoverLetter = () => {
             showSnackbar("success", "PDF exported successfully!", 3000);
             setIsExportingPDF(false);
           },
-          onError: (error) => {
+          onError: () => {
             showSnackbar("error", "Failed to export PDF. Make sure the backend server is running.", 5000);
             setIsExportingPDF(false);
           },

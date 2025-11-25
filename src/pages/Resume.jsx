@@ -11,7 +11,14 @@ import ReactDOM from "react-dom/client";
 // Map to reuse a React root for measurement containers to avoid createRoot() being called multiple times
 const measurementRoots = new WeakMap();
 // pdf generation is handled server-side; client-side html2canvas/jsPDF removed
-import { FiPlus, FiChevronDown, FiChevronUp, FiEdit2, FiCheck, FiX } from "react-icons/fi";
+import {
+  FiPlus,
+  FiChevronDown,
+  FiChevronUp,
+  FiEdit2,
+  FiCheck,
+  FiX,
+} from "react-icons/fi";
 import MultiPageResume from "../components/MultiPageResume";
 import {
   KeyboardSensor,
@@ -25,16 +32,28 @@ import AddSectionDialog from "../components/AddSectionDialog";
 import RichTextEditor from "../components/RichTextEditor";
 import SectionPreview from "../components/SectionPreview";
 import { renderSectionForm } from "../components/SectionForms";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { availableSections } from "../customization/AvailableSections";
 import { fontsByCategory } from "../customization/Fonts";
 import ColorSelector from "../components/ColorSelector";
+import EntryLayoutCustomizer from "../customization/EntryLayoutCustomizer";
 import ResumeNav from "../components/ResumeNav";
 import firestore from "../firebase/firestore";
 
 const Resume = () => {
   // ...existing code...
+  // Entry Layout customization state
+  const [entryLayoutConfig, setEntryLayoutConfig] = useState({
+    layout: 4,
+    size: "S",
+    subtitleStyle: "Normal",
+    subtitlePlacement: "Next Line",
+    indentBody: false,
+    listStyle: "Bullet",
+    entryOrder: [],
+    conDateLocDisplay: "inline",
+  });
   const A4_WIDTH_PX = 794;
   const A4_HEIGHT_PX = 1123;
 
@@ -280,31 +299,30 @@ const Resume = () => {
   }, [resume.selectedFont]);
 
   const params = useParams();
-  const navigate = useNavigate();
 
   // On mount or when docId param changes, handle document loading/creation
   useEffect(() => {
     const initializeDocument = async () => {
       const urlDocId = params?.docId;
-      
+
       if (!urlDocId) {
         // No docId in URL - shouldn't happen with new flow, but handle gracefully
         return;
       }
-      
+
       // If we already have this docId loaded, skip
       if (firestoreDocId === urlDocId) {
         return;
       }
-      
+
       // Set the docId from URL
       setFirestoreDocId(urlDocId);
       setLoadDocId(urlDocId);
-      
+
       try {
         // Try to load existing document from Firestore
         const content = await firestore.getResumeContent(urlDocId);
-        
+
         if (content) {
           // Document exists, load it
           await loadFromFirestore(urlDocId);
@@ -326,7 +344,7 @@ const Resume = () => {
             },
             sections: [],
           };
-          
+
           const initialLayout = {
             layoutConfig: resume.layoutConfig,
             spacingConfig: resume.spacingConfig,
@@ -334,21 +352,21 @@ const Resume = () => {
             selectedFont: resume.selectedFont,
             sectionOrder: resume.sectionOrder,
           };
-          
+
           // Create the document in Firestore with the URL's docId
           await firestore.saveResumeContent(urlDocId, {
             ...initialContent,
             title: "Untitled Resume",
           });
           await firestore.saveResumeLayout(urlDocId, initialLayout);
-          
+
           // Update signature to prevent immediate re-save
           lastSavedSignatureRef.current = computeSignature(resume);
           setLastSavedAt(new Date().toISOString());
-          
+
           showSnackbar("success", "New resume created", 2000);
         }
-        
+
         // Persist the docId to localStorage
         try {
           localStorage.setItem("resume_firestore_docId", urlDocId);
@@ -360,7 +378,7 @@ const Resume = () => {
         showSnackbar("error", "Failed to initialize resume", 3000);
       }
     };
-    
+
     initializeDocument();
   }, [params?.docId]);
 
@@ -552,6 +570,7 @@ const Resume = () => {
             <SectionPreview
               section={section}
               spacingConfig={resume.spacingConfig}
+              columnConfig={resume.layoutConfig.columns}
             />
           </div>
         ))}
@@ -691,7 +710,6 @@ const Resume = () => {
   };
 
   // console.log(resume);
-  
 
   // Save resume to Firestore (content and layout in separate collections)
   // options: force - bypass conflict check; skipConflictCheck - used by autosave to avoid prompting user
@@ -970,7 +988,7 @@ const Resume = () => {
         showSnackbar("error", "No document ID available");
         return;
       }
-      
+
       // Save to existing document
       await firestore.saveResumeContent(docId, content);
       await firestore.saveResumeLayout(docId, layout);
@@ -1028,7 +1046,7 @@ const Resume = () => {
     try {
       const content = await firestore.getResumeContent(docId);
       console.log(content);
-      
+
       const layout = await firestore.getResumeLayout(docId);
 
       if (!content && !layout) {
@@ -1037,8 +1055,8 @@ const Resume = () => {
       }
 
       // Ensure sectionOrder contains only explicitly added sections
-      const validSectionOrder = (layout?.sectionOrder || []).filter((sectionId) =>
-        (content?.sections || []).some((s) => s.id === sectionId)
+      const validSectionOrder = (layout?.sectionOrder || []).filter(
+        (sectionId) => (content?.sections || []).some((s) => s.id === sectionId)
       );
 
       // Hydrate sections with icons from availableSections
@@ -1205,7 +1223,15 @@ const Resume = () => {
             ...section,
             items: section.items.map((item) =>
               item.id === itemId
-                ? { ...item, visible: Object.prototype.hasOwnProperty.call(item, "visible") ? !item.visible : false }
+                ? {
+                    ...item,
+                    visible: Object.prototype.hasOwnProperty.call(
+                      item,
+                      "visible"
+                    )
+                      ? !item.visible
+                      : false,
+                  }
                 : item
             ),
           };
@@ -1214,7 +1240,10 @@ const Resume = () => {
       }),
     }));
     try {
-      lastEditsRef.current.set(`sections.${sectionId}.items.${itemId}.visible`, Date.now());
+      lastEditsRef.current.set(
+        `sections.${sectionId}.items.${itemId}.visible`,
+        Date.now()
+      );
     } catch (e) {}
   };
 
@@ -1250,7 +1279,12 @@ const Resume = () => {
       ...prev,
       sections: prev.sections.map((s) =>
         s.id === sectionId
-          ? { ...s, collapsed: Object.prototype.hasOwnProperty.call(s, "collapsed") ? !s.collapsed : true }
+          ? {
+              ...s,
+              collapsed: Object.prototype.hasOwnProperty.call(s, "collapsed")
+                ? !s.collapsed
+                : true,
+            }
           : s
       ),
     }));
@@ -1350,40 +1384,6 @@ const Resume = () => {
                           ))}
                         </div>
                       </div>
-
-                      {/* <div className="mb-6">
-                        <label className="text-sm font-medium text-slate-700 block mb-3">
-                          Header Position
-                        </label>
-                        <div className="flex gap-3">
-                          {[
-                            { value: "top", label: "Top" },
-                            { value: "left", label: "Left" },
-                            { value: "right", label: "Right" },
-                          ].map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() =>
-                                setResume((prev) => ({
-                                  ...prev,
-                                  layoutConfig: {
-                                    ...prev.layoutConfig,
-                                    headerPosition: option.value,
-                                  },
-                                }))
-                              }
-                              className={`flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition ${
-                                resume.layoutConfig.headerPosition ===
-                                option.value
-                                  ? "border-indigo-600 bg-indigo-50 text-indigo-600"
-                                  : "border-slate-200 text-slate-700 hover:border-slate-300"
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div> */}
 
                       <div className="mb-6">
                         <label className="text-sm font-medium text-slate-700 block mb-3">
@@ -1658,6 +1658,14 @@ const Resume = () => {
                       }
                     />
 
+                    {/* Entry Layout Section */}
+                    <div className="mb-8">
+                      <EntryLayoutCustomizer
+                        value={entryLayoutConfig}
+                        onChange={setEntryLayoutConfig}
+                        format={resume.layoutConfig.columns}
+                      />
+                    </div>
                     {/* Spacing Section */}
                     <div className="mb-8">
                       <h3 className="text-base font-semibold text-slate-800 mb-4">
@@ -2016,9 +2024,15 @@ const Resume = () => {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
-                                    onClick={() => toggleSectionCollapsed(section.id)}
+                                    onClick={() =>
+                                      toggleSectionCollapsed(section.id)
+                                    }
                                     className="text-slate-600 hover:text-slate-800 text-sm p-1"
-                                    title={section.collapsed ? "Expand section" : "Collapse section"}
+                                    title={
+                                      section.collapsed
+                                        ? "Expand section"
+                                        : "Collapse section"
+                                    }
                                   >
                                     {section.collapsed ? (
                                       <FiChevronDown size={18} />
@@ -2030,11 +2044,15 @@ const Resume = () => {
                                     <div className="flex items-center gap-2">
                                       <input
                                         value={editingSectionName}
-                                        onChange={(e) => setEditingSectionName(e.target.value)}
+                                        onChange={(e) =>
+                                          setEditingSectionName(e.target.value)
+                                        }
                                         className="rounded-md border px-2 py-1 text-sm"
                                       />
                                       <button
-                                        onClick={() => saveSectionName(section.id)}
+                                        onClick={() =>
+                                          saveSectionName(section.id)
+                                        }
                                         className="text-indigo-600 hover:text-indigo-700 p-1"
                                         title="Save"
                                       >
@@ -2061,7 +2079,10 @@ const Resume = () => {
                               </div>
 
                               {section.collapsed ? (
-                                <div className="text-sm text-slate-500 mb-3">{(section.items || []).length} items — collapsed</div>
+                                <div className="text-sm text-slate-500 mb-3">
+                                  {(section.items || []).length} items —
+                                  collapsed
+                                </div>
                               ) : (
                                 <>
                                   {renderSectionForm(
@@ -2145,16 +2166,16 @@ const Resume = () => {
                       .resume-preview .resume-role { font-size: var(--resume-size-role) !important; font-style: italic !important; }
                       .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
-                      .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; font-style: italic !important; color: #4B5563 !important; }
+                      .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; color: #4B5563 !important; }
                       .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; color:black; }
                       .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
                       /* Variant for compact entries: same as .resume-entry but no bottom spacing */
                       .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
                       .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
                     `}</style>
-                    
+
                     {/* Multi-page resume component with overflow handling */}
-                    <MultiPageResume 
+                    <MultiPageResume
                       resume={resume}
                       A4_WIDTH_PX={A4_WIDTH_PX}
                       A4_HEIGHT_PX={A4_HEIGHT_PX}
@@ -2165,6 +2186,7 @@ const Resume = () => {
                       setLoadDocId={setLoadDocId}
                       loadFromFirestore={loadFromFirestore}
                       saveToFirestore={saveToFirestore}
+                      entryLayoutConfig={entryLayoutConfig}
                     />
                   </div>
                 </div>
