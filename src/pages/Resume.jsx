@@ -399,6 +399,7 @@ const Resume = () => {
         personalConfig: resume.personalConfig,
         selectedFont: resume.selectedFont,
         sectionOrder: resume.sectionOrder,
+        entryLayoutConfig: entryLayoutConfig,
       });
     } catch (e) {
       sig = null;
@@ -427,7 +428,7 @@ const Resume = () => {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [resume]);
+  }, [resume, entryLayoutConfig]);
 
   // helper to compute a deterministic signature of the important resume parts
   const computeSignature = (r) => {
@@ -440,6 +441,7 @@ const Resume = () => {
         personalConfig: r.personalConfig,
         selectedFont: r.selectedFont,
         sectionOrder: r.sectionOrder,
+        entryLayoutConfig: entryLayoutConfig,
       });
     } catch (e) {
       return null;
@@ -980,6 +982,7 @@ const Resume = () => {
         colorConfig: resumeToSave.colorConfig,
         selectedFont: resumeToSave.selectedFont,
         sectionOrder: resumeToSave.sectionOrder,
+        entryLayoutConfig: entryLayoutConfig,
       });
 
       // Use the existing docId from URL/state
@@ -1074,6 +1077,10 @@ const Resume = () => {
         ...(layout || {}),
         sectionOrder: validSectionOrder,
       }));
+
+      if (layout?.entryLayoutConfig) {
+        setEntryLayoutConfig(layout.entryLayoutConfig);
+      }
 
       setFirestoreDocId(docId);
       try {
@@ -2155,8 +2162,20 @@ const Resume = () => {
                         --resume-size-name: calc(var(--resume-font-size) * 2.2);
                         --resume-size-role: calc(var(--resume-font-size) * 1.5);
                         --resume-size-section: calc(var(--resume-font-size) * 1.25);
-                        --resume-size-title: calc(var(--resume-font-size) * 1.05);
-                        --resume-size-subtitle: calc(var(--resume-font-size) * 1);
+                        --resume-size-title: calc(var(--resume-font-size) * ${
+                          entryLayoutConfig.size === "L"
+                            ? 1.1
+                            : entryLayoutConfig.size === "S"
+                            ? 0.9
+                            : 1.05
+                        });
+                        --resume-size-subtitle: calc(var(--resume-font-size) * ${
+                          entryLayoutConfig.size === "L"
+                            ? 1.05
+                            : entryLayoutConfig.size === "S"
+                            ? 0.85
+                            : 1
+                        });
                         --resume-size-body: calc(var(--resume-font-size) * 1);
                         font-size: var(--resume-size-body);
                         line-height: var(--resume-line-height);

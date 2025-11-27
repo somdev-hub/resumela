@@ -69,7 +69,7 @@ const MultiPageResume = ({
                 marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
                 marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
                 marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
-                marginBottom: "1.5rem",
+                marginBottom: "0.5rem",
               }
             : // Advanced mode with image: background image in header
             resume.colorConfig?.mode === "advanced" &&
