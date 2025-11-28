@@ -150,37 +150,48 @@ const ViewDocument = () => {
     loadDocument();
   }, [docId]);
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
+  useEffect(() => {
+    if (!loading && data) {
+      // Add a small delay to allow for layout calculations (especially for MultiPageResume)
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new Event("resume-ready"));
+        window.__RESUME_READY__ = true;
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, data]);
 
-  if (error) {
-    return (
-      <Box
-        sx={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography variant="h6" color="error">
-          {error}
-        </Typography>
-      </Box>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <Box
+  //       sx={{
+  //         height: "100vh",
+  //         display: "flex",
+  //         alignItems: "center",
+  //         justifyContent: "center",
+  //       }}
+  //     >
+  //       <CircularProgress />
+  //     </Box>
+  //   );
+  // }
+
+  // if (error) {
+  //   return (
+  //     <Box
+  //       sx={{
+  //         height: "100vh",
+  //         display: "flex",
+  //         alignItems: "center",
+  //         justifyContent: "center",
+  //       }}
+  //     >
+  //       <Typography variant="h6" color="error">
+  //         {error}
+  //       </Typography>
+  //     </Box>
+  //   );
+  // }
 
   const A4_WIDTH_PX = 794;
   const A4_HEIGHT_PX = 1123;
