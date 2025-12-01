@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import jsPDF from "jspdf";
 import {
   Box,
   Button,
@@ -20,7 +19,7 @@ import {
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
 } from "@mui/icons-material";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   saveCoverLetterContent,
   saveCoverLetterLayout,
@@ -38,11 +37,11 @@ import {
   DEFAULT_FORM_DATA,
 } from "../hooks/useCoverLetterState";
 import { useFontLoading } from "../hooks/useFontLoading";
-import { exportCoverLetterToPDF } from "../utils/CoverLetterExporter";
 
 const CoverLetter = () => {
   const [syncWithResume, setSyncWithResume] = useState(true);
   const params = useParams();
+  const navigate = useNavigate();
   const pdfPreviewRef = useRef(null);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -70,20 +69,17 @@ const CoverLetter = () => {
   } = useCoverLetterState();
 
   const { saveDraftToLocal } = useCoverLetterLocalStorage();
-  const { fontStatus, loadGoogleFont } =
-    useFontLoading(selectedFont);
+  const { fontStatus, loadGoogleFont } = useFontLoading(selectedFont);
 
   // Firestore state for cover letter
   const [firestoreDocId, setFirestoreDocId] = useState(null);
-  const [loadDocId, setLoadDocId] = useState("");
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [lastSavedAt, setLastSavedAt] = useState(null);
-  const [isExportingPDF, setIsExportingPDF] = useState(false);
-
+  const [isExporting, setIsExporting] = useState(false);
   const autosaveTimerRef = useRef(null);
   const pendingSaveRef = useRef({});
   const lastSavedSignatureRef = useRef(null);
@@ -110,7 +106,7 @@ const CoverLetter = () => {
       "firestoreDocId:",
       firestoreDocId
     );
-    
+
     // Use the existing docId from URL/state
     const docId = firestoreDocId;
     if (!docId) {
@@ -250,25 +246,24 @@ const CoverLetter = () => {
   useEffect(() => {
     const initializeDocument = async () => {
       const urlDocId = params?.docId;
-      
+
       if (!urlDocId) {
         // No docId in URL - shouldn't happen with new flow, but handle gracefully
         return;
       }
-      
+
       // If we already have this docId loaded, skip
       if (firestoreDocId === urlDocId) {
         return;
       }
-      
+
       // Set the docId from URL
       setFirestoreDocId(urlDocId);
-      setLoadDocId(urlDocId);
-      
+
       try {
         // Try to load existing document from Firestore
         const content = await getCoverLetterContent(urlDocId);
-        
+
         if (content) {
           // Document exists, load it
           await loadFromFirestore(urlDocId);
@@ -278,7 +273,7 @@ const CoverLetter = () => {
             ...DEFAULT_FORM_DATA,
             title: "Untitled Cover Letter",
           };
-          
+
           const initialLayout = {
             spacingConfig,
             personalConfig,
@@ -286,25 +281,28 @@ const CoverLetter = () => {
             selectedFont,
             layoutConfig,
           };
-          
+
           // Create the document in Firestore with the URL's docId
           await saveCoverLetterContent(urlDocId, initialFormData);
           await saveCoverLetterLayout(urlDocId, initialLayout);
-          
+
           // Update local state
           setFormData(initialFormData);
-          
+
           // Update signature to prevent immediate re-save
-          lastSavedSignatureRef.current = computeSignature(initialFormData, initialLayout);
+          lastSavedSignatureRef.current = computeSignature(
+            initialFormData,
+            initialLayout
+          );
           setLastSavedAt(new Date().toISOString());
-          
+
           showSnackbar("success", "New cover letter created", 2000);
         }
-        
+
         // Persist the docId to localStorage
         try {
           localStorage.setItem("coverletter_firestore_docId", urlDocId);
-        } catch (e) {
+        } catch {
           // ignore localStorage errors
         }
       } catch (err) {
@@ -312,23 +310,19 @@ const CoverLetter = () => {
         showSnackbar("error", "Failed to initialize cover letter", 3000);
       }
     };
-    
+
     initializeDocument();
-    
+
     // Cleanup autosave timer on unmount
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
   }, [params?.docId]);
 
-  useEffect(() => {
-    setLoadDocId(firestoreDocId || "");
-  }, [firestoreDocId]);
-
   // Autosave debounced changes to local or Firestore
   useEffect(() => {
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    
+
     autosaveTimerRef.current = setTimeout(() => {
       if (firestoreDocId) {
         // Only autosave to Firestore if we have a document ID
@@ -375,144 +369,71 @@ const CoverLetter = () => {
     pdfPreviewRef.current = node;
   }, []);
 
-  const letterParagraphs = useMemo(() => {
+  async function downloadPDF() {
     try {
-      const el = document.createElement("div");
-      el.innerHTML = formData.letterContent || "";
-      const paras = [];
-      el.querySelectorAll("p").forEach((p) => {
-        const txt = p.innerText.replace(/\u00A0/g, " ").trim();
-        if (txt) paras.push(txt);
-      });
-      if (paras.length > 0) return paras;
-      const text = el.innerText || "";
-      return text
-        .split(/\n+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    } catch {
-      return (formData.letterContent || "").split(/\n+/).filter(Boolean);
-    }
-  }, [formData.letterContent]);
-
-  const contactLine = useMemo(() => {
-    return [formData.email, formData.phone, formData.location]
-      .filter(Boolean)
-      .join(" | ");
-  }, [formData.email, formData.phone, formData.location]);
-
-  const secondaryLine = useMemo(() => {
-    return [formData.linkedin, formData.github].filter(Boolean).join(" | ");
-  }, [formData.github, formData.linkedin]);
-
-  const handleExportStyledPDF = async () => {
-    try {
-      setIsExportingPDF(true);
-      showSnackbar("info", "Generating professional PDF...", 0);
-      
-      await exportCoverLetterToPDF(
-        "preview-coverletter",
-        sanitizedFilename,
+      setIsExporting(true);
+      const response = await fetch(
+        `https://resumela-server.onrender.com/export-pdf/${firestoreDocId}`,
         {
-          onSuccess: () => {
-            showSnackbar("success", "PDF exported successfully!", 3000);
-            setIsExportingPDF(false);
-          },
-          onError: () => {
-            showSnackbar("error", "Failed to export PDF. Make sure the backend server is running.", 5000);
-            setIsExportingPDF(false);
-          },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
         }
       );
+
+      setIsExporting(false);
+      if (response.status !== 200) {
+        alert("failed to export PDF");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${sanitizedFilename}.pdf`;
+      a.click();
+
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Export failed:", error);
-      setIsExportingPDF(false);
+      setIsExporting(false);
+      alert("failed to export PDF: " + error.message);
     }
-  };
-
-  const downloadATSOptimizedPDF = () => {
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 40;
-    let y = margin;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(formData.fullName, pageWidth / 2, y, { align: "center" });
-    y += 20;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.text(formData.title, pageWidth / 2, y, { align: "center" });
-    y += 18;
-
-    doc.setFontSize(10);
-    const contactInfo = [contactLine, secondaryLine]
-      .filter(Boolean)
-      .join(" | ");
-    doc.text(contactInfo, pageWidth / 2, y, {
-      align: "center",
-      maxWidth: pageWidth - margin * 2,
-    });
-    y += 28;
-
-    const addLine = (text) => {
-      const lines = doc.splitTextToSize(text, pageWidth - margin * 2);
-      lines.forEach((line) => {
-        if (y > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        doc.text(line, margin, y);
-        y += 16;
-      });
-      y += 8;
-    };
-
-    doc.setFontSize(11);
-    addLine(formData.date);
-    addLine(formData.recipientName);
-    addLine(formData.company);
-    addLine(formData.companyLocation);
-    addLine("");
-    addLine(`Dear ${formData.recipientName},`);
-    letterParagraphs.forEach((paragraph) => addLine(paragraph));
-    addLine("Sincerely,");
-    addLine(formData.fullName);
-
-    doc.save(`${sanitizedFilename}_ats.pdf`);
-  };
+  }
 
   const handleAIGenerate = async ({ jobUrl, resumeId }) => {
     setAiGenerating(true);
     try {
       showSnackbar("info", "Generating your cover letter with AI...");
-      
+
       // Fetch resume data from Firestore
       const resumeContent = await getResumeContent(resumeId);
-      
+
       if (!resumeContent) {
         throw new Error("Failed to fetch resume data");
       }
 
       // Call the API endpoint with the correct format
-      const response = await fetch("http://localhost:5678/webhook-test/cover-letter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          resume: resumeContent,
-          jobUrl: jobUrl,
-        }),
-      });
+      const response = await fetch(
+        "http://localhost:5678/webhook-test/cover-letter",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            resume: resumeContent,
+            jobUrl: jobUrl,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       if (!data.output) {
         throw new Error("Invalid response from API");
       }
@@ -585,15 +506,15 @@ const CoverLetter = () => {
             <Button
               variant="outlined"
               startIcon={<VisibilityIcon />}
-              onClick={handleExportStyledPDF}
-              disabled={isExportingPDF}
+              onClick={() => navigate(`/view/document/${firestoreDocId}`)}
             >
-              {isExportingPDF ? "Exporting..." : "Styled PDF"}
+              View PDF
             </Button>
             <Button
               variant="contained"
               startIcon={<DownloadIcon />}
-              onClick={downloadATSOptimizedPDF}
+              onClick={() => downloadPDF()}
+              disabled={isExporting}
             >
               ATS-friendly PDF
             </Button>

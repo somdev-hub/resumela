@@ -609,7 +609,7 @@ const CoverLetterPreview = ({
 
   return (
     <section className="md:flex-[0_0_auto] h-full flex justify-center flex-col">
-      <div className="flex-1 overflow-auto hide-scrollbar py-6">
+      <div className="flex-1 overflow-auto hide-scrollbar">
         <div className="flex flex-col items-center justify-center">
           <div className="relative" id="preview-coverletter">
             {/* Hidden Measurement Container */}

@@ -34,7 +34,15 @@ export const useCoverLetterPagination = ({
       contentBlocks.forEach(block => {
         const el = container.querySelector(`[data-block-id="${block.id}"]`);
         if (el) {
-          heights[block.id] = el.offsetHeight;
+          const style = window.getComputedStyle(el);
+          const marginTop = parseFloat(style.marginTop) || 0;
+          const marginBottom = parseFloat(style.marginBottom) || 0;
+          
+          heights[block.id] = {
+            height: el.offsetHeight,
+            marginTop,
+            marginBottom
+          };
         }
       });
       
@@ -42,8 +50,13 @@ export const useCoverLetterPagination = ({
       setIsMeasuring(false);
     };
 
-    // Small delay to ensure rendering is complete
+    // Initial measure
     const timer = setTimeout(measure, 50);
+    
+    // Re-measure when fonts are ready
+    if (document.fonts) {
+      document.fonts.ready.then(measure);
+    }
     
     return () => clearTimeout(timer);
   }, [contentBlocks, spacingConfig, A4_HEIGHT_PX]);
@@ -52,21 +65,41 @@ export const useCoverLetterPagination = ({
     const newPages = [];
     let currentPage = { blocks: [] };
     let currentHeight = 0;
+    let prevMarginBottom = 0;
     
     contentBlocks.forEach(block => {
-      const h = heights[block.id] || 0;
+      const metrics = heights[block.id];
+      if (!metrics) return;
+      
+      const { height, marginTop, marginBottom } = metrics;
+      
+      // Calculate effective margin top for this block
+      // If it's the first block on the page, we respect its margin-top (it adds to the page padding)
+      // Otherwise, it collapses with the previous block's margin-bottom
+      const effectiveMarginTop = currentPage.blocks.length === 0 
+        ? marginTop 
+        : Math.max(prevMarginBottom, marginTop);
+      
+      // Total vertical space this block contributes to the flow
+      const blockSpace = effectiveMarginTop + height;
       
       // Check if block fits
-      // If it's the very first block on a page, we must place it there even if it's too big (to avoid infinite loop)
-      if (currentHeight + h > contentHeight && currentPage.blocks.length > 0) {
+      // Note: We use a small tolerance (1px) to avoid precision issues
+      if (currentHeight + blockSpace > contentHeight + 1 && currentPage.blocks.length > 0) {
         // New page
         newPages.push(currentPage);
         currentPage = { blocks: [] };
-        currentHeight = 0;
+        
+        // Reset for new page
+        // On a new page, the first block's margin-top is used (no collapse with previous page)
+        currentHeight = marginTop + height;
+        prevMarginBottom = marginBottom;
+      } else {
+        currentHeight += blockSpace;
+        prevMarginBottom = marginBottom;
       }
       
       currentPage.blocks.push(block);
-      currentHeight += h;
     });
     
     if (currentPage.blocks.length > 0 || newPages.length === 0) {

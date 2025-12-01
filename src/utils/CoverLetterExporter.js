@@ -66,7 +66,7 @@ export const exportCoverLetterToPDF = async (
     `;
 
     // Send to backend API
-    const response = await fetch('http://localhost:3001/api/generate-pdf', {
+    const response = await fetch('https://resumela-server.onrender.com/api/generate-pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
