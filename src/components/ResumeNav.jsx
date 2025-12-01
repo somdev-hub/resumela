@@ -31,7 +31,7 @@ const ResumeNav = () => {
     try {
       setIsExporting(true);
       const response = await fetch(
-        `https://resumela-server.vercel.app/export-pdf/${docId}`,
+        `https://resumela-server.onrender.com/export-pdf/${docId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
