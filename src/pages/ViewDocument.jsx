@@ -201,11 +201,11 @@ const ViewDocument = () => {
       style={{
         width: "100%",
         minHeight: "100vh",
-        // padding: "40px",
         background: "#f3f4f6", // Light gray background for the page
         display: "flex",
         justifyContent: "center",
         overflow: "auto",
+        padding: typeof window !== 'undefined' && window.innerWidth < 768 ? "16px" : "40px",
       }}
     >
       {documentType === "resume" && (
@@ -250,6 +250,9 @@ const ViewDocument = () => {
                     fontFamily: data.selectedFont.family
                     ? `'${data.selectedFont.family}', serif`
                     : undefined,
+                    width: A4_WIDTH_PX,
+                    minHeight: A4_HEIGHT_PX,
+                    maxWidth: "100%",
                 }}
             >
                 <MultiPageResume

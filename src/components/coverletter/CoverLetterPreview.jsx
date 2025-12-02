@@ -130,44 +130,51 @@ const CoverLetterPreview = ({
   // Helper to split HTML content into blocks
   const contentBlocks = useMemo(() => {
     const blocks = [];
-    
+
     // 1. Header Block
-    blocks.push({ id: 'header', type: 'header' });
+    blocks.push({ id: "header", type: "header" });
 
     // 2. Recipient Info Block
-    blocks.push({ id: 'recipient', type: 'recipient' });
+    blocks.push({ id: "recipient", type: "recipient" });
 
     // 3. Salutation Block
-    blocks.push({ id: 'salutation', type: 'salutation' });
+    blocks.push({ id: "salutation", type: "salutation" });
 
     // 4. Body Paragraphs
     if (formData.letterContent) {
-      const div = document.createElement('div');
+      const div = document.createElement("div");
       div.innerHTML = formData.letterContent;
-      
+
       if (div.children.length === 0 && div.textContent.trim()) {
-         blocks.push({ id: 'body-0', type: 'html', content: formData.letterContent });
+        blocks.push({
+          id: "body-0",
+          type: "html",
+          content: formData.letterContent,
+        });
       } else {
         Array.from(div.childNodes).forEach((child, index) => {
           if (child.nodeType === Node.ELEMENT_NODE) {
-             blocks.push({
-               id: `body-${index}`,
-               type: 'html',
-               content: child.outerHTML
-             });
-          } else if (child.nodeType === Node.TEXT_NODE && child.textContent.trim()) {
-             blocks.push({
-               id: `body-${index}`,
-               type: 'html',
-               content: `<p>${child.textContent}</p>`
-             });
+            blocks.push({
+              id: `body-${index}`,
+              type: "html",
+              content: child.outerHTML,
+            });
+          } else if (
+            child.nodeType === Node.TEXT_NODE &&
+            child.textContent.trim()
+          ) {
+            blocks.push({
+              id: `body-${index}`,
+              type: "html",
+              content: `<p>${child.textContent}</p>`,
+            });
           }
         });
       }
     }
 
     // 5. Closing Block
-    blocks.push({ id: 'closing', type: 'closing' });
+    blocks.push({ id: "closing", type: "closing" });
 
     return blocks;
   }, [formData]);
@@ -211,9 +218,9 @@ const CoverLetterPreview = ({
         ? {
             backgroundImage: `linear-gradient(rgba(0, 0, 0, ${
               colorConfig.imageOpacity || 0.3
-            }), rgba(0, 0, 0, ${
-              colorConfig.imageOpacity || 0.3
-            })), url(${colorConfig.selectedImage})`,
+            }), rgba(0, 0, 0, ${colorConfig.imageOpacity || 0.3})), url(${
+              colorConfig.selectedImage
+            })`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -263,11 +270,7 @@ const CoverLetterPreview = ({
           )}
 
         <div
-          className={
-            headerAlign === "center"
-              ? "w-full text-center"
-              : "flex-1"
-          }
+          className={headerAlign === "center" ? "w-full text-center" : "flex-1"}
         >
           {/** When centered, show photo inside header above name/title **/}
           {formData.photoUrl && headerAlign === "center" && (
@@ -300,16 +303,14 @@ const CoverLetterPreview = ({
                 : {}),
               ...(isAdvancedMultiMode
                 ? {
-                    color:
-                      colorConfig.multiHeaderTextColor || "#ffffff",
+                    color: colorConfig.multiHeaderTextColor || "#ffffff",
                   }
                 : {}),
               ...(colorConfig?.mode === "basic" &&
               colorConfig?.accentMode === "multi"
                 ? { color: colorConfig.multiTextColor || "#1f2937" }
                 : {}),
-              ...(colorConfig?.mode === "basic" &&
-              colorConfig?.selectedColor
+              ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor
                 ? { color: colorConfig.selectedColor }
                 : {}),
             }}
@@ -324,20 +325,16 @@ const CoverLetterPreview = ({
                 : {}),
               ...(isAdvancedMultiMode
                 ? {
-                    color:
-                      colorConfig.multiHeaderAccentColor ||
-                      "#d97706",
+                    color: colorConfig.multiHeaderAccentColor || "#d97706",
                   }
                 : {}),
               ...(colorConfig?.mode === "basic" &&
               colorConfig?.accentMode === "multi"
                 ? {
-                    color:
-                      colorConfig.multiAccentColor || "#2c3e50",
+                    color: colorConfig.multiAccentColor || "#2c3e50",
                   }
                 : {}),
-              ...(colorConfig?.mode === "basic" &&
-              colorConfig?.selectedColor
+              ...(colorConfig?.mode === "basic" && colorConfig?.selectedColor
                 ? { color: colorConfig.selectedColor }
                 : {}),
             }}
@@ -353,19 +350,13 @@ const CoverLetterPreview = ({
   const renderRecipient = () => (
     <div className="mb-4 my-4">
       <div className="flex justify-end mt-2">
-        {formData.date && (
-          <p style={{ color: "#6b7280" }}>{formData.date}</p>
-        )}
+        {formData.date && <p style={{ color: "#6b7280" }}>{formData.date}</p>}
       </div>
       {formData.recipientName && (
         <p className="font-bold">{formData.recipientName}</p>
       )}
-      {formData.company && (
-        <p className="m-0">{formData.company}</p>
-      )}
-      {formData.companyLocation && (
-        <p>{formData.companyLocation}</p>
-      )}
+      {formData.company && <p className="m-0">{formData.company}</p>}
+      {formData.companyLocation && <p>{formData.companyLocation}</p>}
     </div>
   );
 
@@ -414,16 +405,31 @@ const CoverLetterPreview = ({
 
   const renderBlock = (block) => {
     switch (block.type) {
-      case 'header': return renderHeader();
-      case 'recipient': return renderRecipient();
-      case 'salutation': return renderSalutation();
-      case 'html': return <div dangerouslySetInnerHTML={{ __html: block.content }} />;
-      case 'closing': return renderClosing();
-      default: return null;
+      case "header":
+        return renderHeader();
+      case "recipient":
+        return renderRecipient();
+      case "salutation":
+        return renderSalutation();
+      case "html":
+        return <div dangerouslySetInnerHTML={{ __html: block.content }} />;
+      case "closing":
+        return renderClosing();
+      default:
+        return null;
     }
   };
 
   const renderPage = (pageData, pageIndex) => {
+    // Calculate scale to fit preview in viewport while maintaining structure
+    const containerPadding = 32; // px-2 on mobile, px-0 on desktop
+    const maxAvailableWidth =
+      typeof window !== "undefined"
+        ? window.innerWidth - containerPadding
+        : 794;
+
+    const scale = Math.min(maxAvailableWidth / A4_WIDTH_PX, 1);
+
     return (
       <div
         key={pageIndex}
@@ -435,6 +441,8 @@ const CoverLetterPreview = ({
           width: A4_WIDTH_PX,
           minHeight: A4_HEIGHT_PX,
           maxWidth: "100%",
+          transform: `scale(${scale})`,
+          transformOrigin: "top center",
           background:
             colorConfig?.accentMode === "multi" &&
             colorConfig?.multiBackgroundColor
@@ -587,20 +595,9 @@ const CoverLetterPreview = ({
           
         `}</style>
 
-        {pageIndex === 0 && (
-          <Chip
-            label="Live preview"
-            color="primary"
-            size="small"
-            sx={{ position: "absolute", top: 16, right: 16 }}
-          />
-        )}
-
         <div className="letter-body">
-          {pageData.blocks.map(block => (
-            <div key={block.id}>
-              {renderBlock(block)}
-            </div>
+          {pageData.blocks.map((block) => (
+            <div key={block.id}>{renderBlock(block)}</div>
           ))}
         </div>
       </div>
@@ -608,9 +605,9 @@ const CoverLetterPreview = ({
   };
 
   return (
-    <section className="md:flex-[0_0_auto] h-full flex justify-center flex-col">
+    <section className="md:flex-[0_0_auto] h-full flex justify-center flex-col w-full">
       <div className="flex-1 overflow-auto hide-scrollbar">
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center px-2 md:px-0">
           <div className="relative" id="preview-coverletter">
             {/* Hidden Measurement Container */}
             <div
@@ -621,7 +618,7 @@ const CoverLetterPreview = ({
                 position: "absolute",
                 visibility: "hidden",
                 zIndex: -1,
-                width: `${A4_WIDTH_PX - (paddingLR * 2)}px`,
+                width: `${A4_WIDTH_PX - paddingLR * 2}px`,
                 padding: 0,
                 // Copy font styles for accurate measurement
                 ["--resume-font-size"]: `${spacingConfig.fontSize}pt`,
@@ -637,7 +634,7 @@ const CoverLetterPreview = ({
                   : undefined,
               }}
             >
-              {contentBlocks.map(block => (
+              {contentBlocks.map((block) => (
                 <div key={block.id} data-block-id={block.id}>
                   {renderBlock(block)}
                 </div>

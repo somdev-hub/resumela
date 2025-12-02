@@ -3,7 +3,7 @@ import { MdOutlineMail } from "react-icons/md";
 
 const Cards = ({ newResume, newCoverLetter }) => {
   return (
-    <div className="flex gap-8 justify-center mx-[16rem]">
+    <div className="flex flex-col md:flex-row gap-8 justify-center mx-4 md:mx-[16rem]">
       {/* Resumes Card */}
       <div className="bg-white rounded-xl shadow-md p-8 flex flex-col items-center">
         <FaFileAlt className="text-blue-500 text-4xl mb-4" />

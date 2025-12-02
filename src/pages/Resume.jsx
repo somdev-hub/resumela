@@ -133,6 +133,7 @@ const Resume = () => {
   const [showAddSection, setShowAddSection] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
   const [activeFontCategory, setActiveFontCategory] = useState("serif");
+  const [showPreview, setShowPreview] = useState(false);
 
   // URL dialog state for LinkedIn / GitHub
   const [urlDialog, setUrlDialog] = useState({
@@ -1316,13 +1317,13 @@ const Resume = () => {
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex flex-col">
-      <ResumeNav />
+      <ResumeNav onPreviewToggle={() => setShowPreview(!showPreview)} />
 
       <main className="flex-1 w-full pt-20">
-        <div className="mx-auto flex w-full gap-2 px-6 md:flex-row items-start h-[calc(100vh-80px)] justify-center pt-4">
+        <div className="mx-auto flex w-full gap-2 px-4 md:px-6 flex-col md:flex-row items-start h-[calc(100vh-80px)] justify-center pt-4">
           {/* Left Editor Column */}
-          <section className="w-full  h-full">
-            <div className="w-full bg-white/90 p-8 shadow-xl ring-1 ring-indigo-100 h-full flex flex-col">
+          <section className="w-full md:flex-1 h-full">
+            <div className="w-full bg-white/90 p-4 md:p-8 shadow-xl ring-1 ring-indigo-100 h-full flex flex-col">
               {/* Tabs */}
               <div className="flex items-center gap-2 mb-6 border-b border-slate-200">
                 <button
@@ -1347,7 +1348,7 @@ const Resume = () => {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto hide-scrollbar pr-2">
+              <div className="flex-1 overflow-y-auto hide-scrollbar md:pr-2">
                 {activeTab === "customize" ? (
                   // Customize Tab
                   <div>
@@ -2125,7 +2126,7 @@ const Resume = () => {
           </section>
 
           {/* Right Preview Column */}
-          <section className=" md:flex-[0_0_auto] h-full flex justify-center flex-col">
+          <section className="hidden md:flex md:flex-1 h-full justify-center flex-col">
             <div className="flex-1 overflow-auto hide-scrollbar">
               <div className="flex items-start justify-center py-6">
                 <div className="relative" id="preview-resume">
@@ -2141,6 +2142,16 @@ const Resume = () => {
                       fontFamily: resume.selectedFont.family
                         ? `'${resume.selectedFont.family}', serif`
                         : undefined,
+                      width: A4_WIDTH_PX,
+                      minHeight: A4_HEIGHT_PX,
+                      maxWidth: "100%",
+                      transform: `scale(${Math.min(
+                        (typeof window !== "undefined"
+                          ? window.innerWidth - 64
+                          : 794) / A4_WIDTH_PX,
+                        1
+                      )})`,
+                      transformOrigin: "top center",
                     }}
                   >
                     {/* Hidden measurement container used to compute section heights for column-aware distribution */}
@@ -2214,6 +2225,113 @@ const Resume = () => {
           </section>
         </div>
       </main>
+
+      {/* Mobile Preview Overlay */}
+      {showPreview && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setShowPreview(false)}
+        />
+      )}
+      {showPreview && (
+        <div className="fixed inset-0 left-0 top-20 right-0 bottom-0 z-50 md:hidden flex flex-col bg-white/95">
+          <div className="flex items-center justify-between p-4 border-b border-slate-200">
+            <h2 className="text-lg font-semibold text-slate-800">Preview</h2>
+            <button
+              onClick={() => setShowPreview(false)}
+              className="p-2 hover:bg-slate-100 rounded-lg transition"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-auto hide-scrollbar flex items-start justify-center p-4">
+            <div className="relative" id="preview-resume">
+              <div
+                ref={combinedPreviewRef}
+                id="resume-preview"
+                className="resume-preview relative"
+                style={{
+                  ["--resume-font-size"]: `${resume.spacingConfig.fontSize}pt`,
+                  ["--resume-line-height"]: resume.spacingConfig.lineHeight,
+                  ["--resume-entry-spacing"]: `${resume.spacingConfig.entrySpacing}px`,
+                  fontFamily: resume.selectedFont.family
+                    ? `'${resume.selectedFont.family}', serif`
+                    : undefined,
+                  width: A4_WIDTH_PX,
+                  minHeight: A4_HEIGHT_PX,
+                  maxWidth: "100%",
+                  transform: `scale(${Math.min(
+                    (window.innerWidth - 32) / A4_WIDTH_PX,
+                    1
+                  )})`,
+                  transformOrigin: "top center",
+                }}
+              >
+                <style>{`
+                  .resume-preview {
+                    --resume-size-name: calc(var(--resume-font-size) * 2.2);
+                    --resume-size-role: calc(var(--resume-font-size) * 1.5);
+                    --resume-size-section: calc(var(--resume-font-size) * 1.25);
+                    --resume-size-title: calc(var(--resume-font-size) * ${
+                      entryLayoutConfig.size === "L"
+                        ? 1.1
+                        : entryLayoutConfig.size === "S"
+                        ? 0.9
+                        : 1.05
+                    });
+                    --resume-size-subtitle: calc(var(--resume-font-size) * ${
+                      entryLayoutConfig.size === "L"
+                        ? 1.05
+                        : entryLayoutConfig.size === "S"
+                        ? 0.85
+                        : 1
+                    });
+                    --resume-size-body: calc(var(--resume-font-size) * 1);
+                    font-size: var(--resume-size-body);
+                    line-height: var(--resume-line-height);
+                  }
+                  .resume-preview .resume-name { font-size: var(--resume-size-name) !important; line-height: 1.05 !important; }
+                  .resume-preview .resume-role { font-size: var(--resume-size-role) !important; font-style: italic !important; }
+                  .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
+                  .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
+                  .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; color: #4B5563 !important; }
+                  .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; color:black; }
+                  .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
+                  .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
+                  .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
+                `}</style>
+
+                <MultiPageResume
+                  resume={resume}
+                  A4_WIDTH_PX={A4_WIDTH_PX}
+                  A4_HEIGHT_PX={A4_HEIGHT_PX}
+                  formatLastSaved={formatLastSaved}
+                  lastSavedAt={lastSavedAt}
+                  isSaving={isSaving}
+                  loadDocId={loadDocId}
+                  setLoadDocId={setLoadDocId}
+                  loadFromFirestore={loadFromFirestore}
+                  saveToFirestore={saveToFirestore}
+                  entryLayoutConfig={entryLayoutConfig}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Snackbar for feedback */}
       <Snackbar
         open={snackbarOpen}

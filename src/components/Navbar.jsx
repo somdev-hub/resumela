@@ -28,11 +28,13 @@ import {
   TextField,
   Button,
 } from "@mui/material";
+import { Menu as MenuIcon } from "@mui/icons-material";
 
 const Navbar = () => {
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [user, setUser] = useState(null);
+  const [mobileMenuAnchor, setMobileMenuAnchor] = useState(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -162,29 +164,43 @@ const Navbar = () => {
     <>
       <nav className="flex items-center justify-between px-4 py-4 bg-white/30 backdrop-blur-md shadow-lg rounded-xl w-full mb-8">
         <h1 className="text-2xl font-bold">Resumela</h1>
-        <ul className="flex flex-1 justify-center gap-8 list-none m-0 p-0">
+        
+        {/* Desktop Navigation */}
+        <ul className="hidden md:flex flex-1 justify-center gap-8 list-none m-0 p-0">
           <li className="text-lg">Home</li>
           <li className="text-lg">About</li>
           <li className="text-lg">Contact</li>
         </ul>
+
         <div className="flex items-center gap-4">
           {!user ? (
             <>
+              {/* Desktop Auth Buttons */}
               <button
                 onClick={() => setShowSignup(true)}
-                className="mr-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
+                className="hidden sm:block mr-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 font-semibold"
               >
                 Sign Up
               </button>
               <button
                 onClick={() => setShowLogin(true)}
-                className="bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded shadow hover:bg-gray-200 font-semibold"
+                className="hidden sm:block bg-gray-100 text-gray-800 border border-gray-300 px-4 py-2 rounded shadow hover:bg-gray-200 font-semibold"
               >
                 Log In
               </button>
+
+              {/* Mobile Menu Button for Auth */}
+              <IconButton
+                onClick={(e) => setMobileMenuAnchor(e.currentTarget)}
+                sx={{ display: { xs: "inline-flex", sm: "none" } }}
+                size="small"
+              >
+                <MenuIcon />
+              </IconButton>
             </>
           ) : (
             <>
+              {/* Desktop User Info */}
               <Typography className="hidden sm:block text-sm text-gray-700">
                 {user.email}
               </Typography>
@@ -196,6 +212,15 @@ const Navbar = () => {
                     ? user.email[0]
                     : "U"}
                 </Avatar>
+              </IconButton>
+
+              {/* Mobile Menu Button for User */}
+              <IconButton
+                onClick={(e) => setMobileMenuAnchor(e.currentTarget)}
+                sx={{ display: { xs: "inline-flex", md: "none" } }}
+                size="small"
+              >
+                <MenuIcon />
               </IconButton>
             </>
           )}
@@ -220,6 +245,95 @@ const Navbar = () => {
           }}
         />
       )}
+
+      {/* Mobile Menu for Navigation and Auth */}
+      <Menu
+        anchorEl={mobileMenuAnchor}
+        open={Boolean(mobileMenuAnchor)}
+        onClose={() => setMobileMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {!user ? (
+          <>
+            <MenuItem
+              onClick={() => {
+                setShowSignup(true);
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Sign Up
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setShowLogin(true);
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Log In
+            </MenuItem>
+            <Divider />
+            <MenuItem disabled>Home</MenuItem>
+            <MenuItem disabled>About</MenuItem>
+            <MenuItem disabled>Contact</MenuItem>
+          </>
+        ) : (
+          <>
+            <MenuItem disabled>{user.email}</MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                setOpenChangeEmail(true);
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Change email
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setOpenChangePassword(true);
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Change password
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                handleLogout();
+                setMobileMenuAnchor(null);
+              }}
+              sx={{
+                color: "error.main",
+                border: "1px solid",
+                borderColor: "error.light",
+                m: 1,
+                borderRadius: 1,
+                justifyContent: "center",
+              }}
+            >
+              Log out
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setOpenDeleteConfirm(true);
+                setMobileMenuAnchor(null);
+              }}
+              sx={{
+                color: "white",
+                backgroundColor: "error.main",
+                "&:hover": { backgroundColor: "error.dark" },
+                m: 1,
+                borderRadius: 1,
+                justifyContent: "center",
+              }}
+            >
+              Delete account
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+
       {/* Avatar menu */}
       <Menu
         anchorEl={anchorEl}

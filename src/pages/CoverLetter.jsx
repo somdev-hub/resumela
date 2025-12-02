@@ -13,11 +13,15 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Menu,
+  MenuItem,
+  IconButton,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
   Visibility as VisibilityIcon,
   Description as DescriptionIcon,
+  Menu as MenuIcon,
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -45,6 +49,8 @@ const CoverLetter = () => {
   const pdfPreviewRef = useRef(null);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [showPreview, setShowPreview] = useState(false); // For mobile preview toggle
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null); // For hamburger menu
 
   // Use custom hooks for state management
   const {
@@ -474,19 +480,29 @@ const CoverLetter = () => {
       }}
     >
       <AppBar position="fixed" color="inherit" elevation={1}>
-        <Toolbar>
-          <Avatar sx={{ bgcolor: "primary.main", mr: 2 }}>
+        <Toolbar sx={{ gap: 2 }}>
+          <Avatar sx={{ bgcolor: "primary.main", mr: { md: 2 } }}>
             <DescriptionIcon />
           </Avatar>
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, minWidth: "200px" }}>
             <Typography variant="h6" fontWeight={600}>
               Cover Letter Builder
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: { xs: "none", md: "block" } }}
+            >
               Edit details on the left, preview updates instantly on the right
             </Typography>
           </Box>
-          <Stack direction="row" spacing={2}>
+
+          {/* Desktop Buttons - visible on md and up */}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ display: { xs: "none", md: "flex" } }}
+          >
             <Button
               variant="outlined"
               size="small"
@@ -505,6 +521,7 @@ const CoverLetter = () => {
             </Button>
             <Button
               variant="outlined"
+              size="small"
               startIcon={<VisibilityIcon />}
               onClick={() => navigate(`/view/document/${firestoreDocId}`)}
             >
@@ -512,15 +529,84 @@ const CoverLetter = () => {
             </Button>
             <Button
               variant="contained"
+              size="small"
               startIcon={<DownloadIcon />}
               onClick={() => downloadPDF()}
               disabled={isExporting}
             >
-              ATS-friendly PDF
+              Download
             </Button>
           </Stack>
-          <Box sx={{ ml: 2, display: "flex", alignItems: "center" }}>
-            <Typography variant="caption" color="text.secondary">
+
+          {/* Mobile Buttons - visible on sm and down */}
+          {/* Preview Button */}
+
+          {/* Hamburger Menu Button */}
+          <IconButton
+            onClick={() => setShowPreview(!showPreview)}
+            sx={{ display: { xs: "inline-flex", md: "none" } }}
+          >
+            <VisibilityIcon />
+          </IconButton>
+          <IconButton
+            onClick={(e) => setMenuAnchorEl(e.currentTarget)}
+            sx={{ display: { xs: "inline-flex", md: "none" } }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          {/* Hamburger Menu Dropdown */}
+          <Menu
+            anchorEl={menuAnchorEl}
+            open={Boolean(menuAnchorEl)}
+            onClose={() => setMenuAnchorEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <MenuItem
+              onClick={() => {
+                setAiDialogOpen(true);
+                setMenuAnchorEl(null);
+              }}
+              disabled={aiGenerating}
+            >
+              ✨ Generate with AI
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                saveToFirestore();
+                setMenuAnchorEl(null);
+              }}
+              disabled={isSaving}
+            >
+              Save
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                navigate(`/view/document/${firestoreDocId}`);
+                setMenuAnchorEl(null);
+              }}
+            >
+              View PDF
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                downloadPDF();
+                setMenuAnchorEl(null);
+              }}
+              disabled={isExporting}
+            >
+              Download PDF
+            </MenuItem>
+          </Menu>
+
+          {/* Save Status */}
+          <Box sx={{ ml: 1, display: "flex", alignItems: "center" }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: { xs: "none", sm: "block" } }}
+            >
               {isSaving
                 ? "Saving..."
                 : lastSavedAt
@@ -533,14 +619,40 @@ const CoverLetter = () => {
       <Toolbar /> {/* Spacer for fixed AppBar */}
       <main className="flex-1 w-full" style={{ height: "calc(100vh - 64px)" }}>
         <div
-          className="mx-auto flex w-full gap-6 px-6 md:flex-row items-stretch justify-center pt-4"
+          className="mx-auto flex w-full gap-6 px-2 md:px-6 md:flex-row items-stretch justify-center pt-4 flex-col"
           style={{ height: "100%" }}
         >
-          {/* Left Editor Column - equal width */}
-          <div className="w-full h-full flex flex-col">{EditorPane()}</div>
+          {/* Left Editor Column - full width on mobile, half on desktop */}
+          <div className="w-full md:flex-1 h-full flex flex-col">
+            {EditorPane()}
+          </div>
 
-          {/* Right Preview Column - equal width */}
-          <div className="w-full h-full flex flex-col">{PreviewPane()}</div>
+          {/* Right Preview Column - hidden on mobile, shown as overlay with toggle, visible on desktop */}
+          <div className="hidden md:flex md:flex-1 h-full flex-col">
+            {PreviewPane()}
+          </div>
+
+          {/* Mobile Preview Overlay - only visible on mobile */}
+          {showPreview && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              onClick={() => setShowPreview(false)}
+            />
+          )}
+          {showPreview && (
+            <div className="fixed inset-0 left-0 top-16 right-0 bottom-0 z-50 md:hidden overflow-hidden flex flex-col bg-white">
+              <div className="flex items-center justify-between p-4 border-b">
+                <Typography variant="h6">Preview</Typography>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto">{PreviewPane()}</div>
+            </div>
+          )}
         </div>
       </main>
       {/* Conflict dialog */}
