@@ -5,7 +5,7 @@ import Home from './pages/Home'
 import CoverLetter from './pages/CoverLetter'
 import Resume from './pages/Resume'
 import ViewDocument from './pages/ViewDocument'
-import Marketplace from './pages/Marketplace'
+import Marketplace from './pages/MarketPlace'
 
 function App() {
 
