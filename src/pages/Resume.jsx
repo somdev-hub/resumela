@@ -18,6 +18,9 @@ import {
   FiEdit2,
   FiCheck,
   FiX,
+  FiEye,
+  FiEyeOff,
+  FiTrash2,
 } from "react-icons/fi";
 import MultiPageResume from "../components/MultiPageResume";
 import {
@@ -1301,6 +1304,36 @@ const Resume = () => {
     } catch (e) {}
   };
 
+  const toggleSectionVisibility = (sectionId) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              visible: Object.prototype.hasOwnProperty.call(s, "visible")
+                ? !s.visible
+                : true,
+            }
+          : s
+      ),
+    }));
+    try {
+      lastEditsRef.current.set(`sections.${sectionId}.visible`, Date.now());
+    } catch (e) {}
+  };
+
+  const removeSection = (sectionId) => {
+    setResume((prev) => ({
+      ...prev,
+      sections: prev.sections.filter((s) => s.id !== sectionId),
+      sectionOrder: prev.sectionOrder.filter((id) => id !== sectionId),
+    }));
+    try {
+      lastEditsRef.current.set(`sections.${sectionId}.deleted`, Date.now());
+    } catch (e) {}
+  };
+
   const personalFields = [
     { label: "Full Name", name: "fullName", type: "text", colSpan: 1 },
     { label: "Professional Title", name: "title", type: "text", colSpan: 1 },
@@ -1393,69 +1426,106 @@ const Resume = () => {
                         </div>
                       </div>
 
-                      <div className="mb-6">
-                        <label className="text-sm font-medium text-slate-700 block mb-3">
-                          Column Width
-                        </label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-slate-600">
-                                Left
-                              </span>
-                              <span className="text-xs font-medium text-slate-700">
-                                {resume.layoutConfig.leftColumnWidth}%
-                              </span>
+                      {resume.layoutConfig.columns === "two" && (
+                        <div className="mb-6">
+                          <label className="text-sm font-medium text-slate-700 block mb-3">
+                            Column Width
+                          </label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-slate-600">
+                                  Left
+                                </span>
+                                <span className="text-xs font-medium text-slate-700">
+                                  {resume.layoutConfig.leftColumnWidth}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min="30"
+                                max="70"
+                                value={resume.layoutConfig.leftColumnWidth}
+                                onChange={(e) =>
+                                  setResume((prev) => ({
+                                    ...prev,
+                                    layoutConfig: {
+                                      ...prev.layoutConfig,
+                                      leftColumnWidth: parseInt(e.target.value),
+                                      rightColumnWidth:
+                                        100 - parseInt(e.target.value),
+                                    },
+                                  }))
+                                }
+                                className="w-full"
+                              />
                             </div>
-                            <input
-                              type="range"
-                              min="30"
-                              max="70"
-                              value={resume.layoutConfig.leftColumnWidth}
-                              onChange={(e) =>
-                                setResume((prev) => ({
-                                  ...prev,
-                                  layoutConfig: {
-                                    ...prev.layoutConfig,
-                                    leftColumnWidth: parseInt(e.target.value),
-                                    rightColumnWidth:
-                                      100 - parseInt(e.target.value),
-                                  },
-                                }))
-                              }
-                              className="w-full"
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-slate-600">
-                                Right
-                              </span>
-                              <span className="text-xs font-medium text-slate-700">
-                                {resume.layoutConfig.rightColumnWidth}%
-                              </span>
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs text-slate-600">
+                                  Right
+                                </span>
+                                <span className="text-xs font-medium text-slate-700">
+                                  {resume.layoutConfig.rightColumnWidth}%
+                                </span>
+                              </div>
+                              <input
+                                type="range"
+                                min="30"
+                                max="70"
+                                value={resume.layoutConfig.rightColumnWidth}
+                                onChange={(e) =>
+                                  setResume((prev) => ({
+                                    ...prev,
+                                    layoutConfig: {
+                                      ...prev.layoutConfig,
+                                      rightColumnWidth: parseInt(e.target.value),
+                                      leftColumnWidth:
+                                        100 - parseInt(e.target.value),
+                                    },
+                                  }))
+                                }
+                                className="w-full"
+                              />
                             </div>
-                            <input
-                              type="range"
-                              min="30"
-                              max="70"
-                              value={resume.layoutConfig.rightColumnWidth}
-                              onChange={(e) =>
-                                setResume((prev) => ({
-                                  ...prev,
-                                  layoutConfig: {
-                                    ...prev.layoutConfig,
-                                    rightColumnWidth: parseInt(e.target.value),
-                                    leftColumnWidth:
-                                      100 - parseInt(e.target.value),
-                                  },
-                                }))
-                              }
-                              className="w-full"
-                            />
                           </div>
                         </div>
-                      </div>
+                      )}
+
+                      {resume.layoutConfig.columns === "two" && (
+                        <div className="mb-6">
+                          <label className="text-sm font-medium text-slate-700 block mb-3">
+                            Header Position
+                          </label>
+                          <div className="flex gap-3">
+                            {[
+                              { value: "left", label: "Left" },
+                              { value: "top", label: "Top" },
+                              { value: "right", label: "Right" },
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() =>
+                                  setResume((prev) => ({
+                                    ...prev,
+                                    layoutConfig: {
+                                      ...prev.layoutConfig,
+                                      headerPosition: option.value,
+                                    },
+                                  }))
+                                }
+                                className={`flex-1 px-4 py-2 rounded-lg border-2 transition text-sm font-medium ${
+                                  resume.layoutConfig.headerPosition === option.value
+                                    ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+                                    : "border-slate-200 text-slate-700 hover:border-slate-300"
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Font Section */}
@@ -2048,6 +2118,22 @@ const Resume = () => {
                                       <FiChevronUp size={18} />
                                     )}
                                   </button>
+                                  <button
+                                    onClick={() =>
+                                      toggleSectionVisibility(section.id)
+                                    }
+                                    className="text-slate-600 hover:text-slate-800 text-sm p-1"
+                                    title="Hide from preview"
+                                  >
+                                    <FiEye size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => removeSection(section.id)}
+                                    className="text-rose-600 hover:text-rose-700 text-sm p-1"
+                                    title="Delete section"
+                                  >
+                                    <FiTrash2 size={18} />
+                                  </button>
                                   {editingSectionId === section.id ? (
                                     <div className="flex items-center gap-2">
                                       <input
@@ -2118,6 +2204,49 @@ const Resume = () => {
                             </div>
                           );
                         })}
+                      
+                      {/* Hidden Sections */}
+                      {resume.sections.filter((s) => !s.visible).length > 0 && (
+                        <div className="mt-12 pt-8 border-t-2 border-slate-300">
+                          <h2 className="text-lg font-bold text-slate-700 mb-6">Hidden Sections</h2>
+                          <p className="text-sm text-slate-500 mb-6">These sections are hidden from the preview. Click the eye icon to show them.</p>
+                          {resume.sections
+                            .filter((s) => !s.visible)
+                            .map((section) => {
+                              const Icon = section.icon;
+                              return (
+                                <div
+                                  key={section.id}
+                                  className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-300 opacity-60"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 relative">
+                                      <div className="relative inline-flex">
+                                        <Icon className="text-slate-400" size={18} />
+                                        <FiEyeOff className="text-rose-400 absolute top-0 left-0" size={18} />
+                                      </div>
+                                      <h3 className="text-sm font-semibold text-slate-600">
+                                        {section.name}
+                                      </h3>
+                                      <span className="text-xs text-slate-500 ml-2">
+                                        ({(section.items || []).length} items)
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        toggleSectionVisibility(section.id)
+                                      }
+                                      className="text-slate-500 hover:text-indigo-600 text-sm p-1"
+                                      title="Show in preview"
+                                    >
+                                      <FiEyeOff size={18} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2196,12 +2325,23 @@ const Resume = () => {
                       .resume-preview .resume-role { font-size: var(--resume-size-role) !important; font-style: italic !important; }
                       .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
                       .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
-                      .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; color: #4B5563 !important; }
+                      .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; ${resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "multi" ? "" : "color: #4B5563 !important;"} }
                       .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; color:black; }
                       .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
                       /* Variant for compact entries: same as .resume-entry but no bottom spacing */
                       .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
                       .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
+                      /* Apply accent colors in advanced multicolor mode */
+                      ${resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "multi" ? `
+                        .resume-preview .resume-role { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                        ${resume.layoutConfig?.headerPosition === "top" ? `
+                          .resume-preview .resume-section-heading { color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; border-color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; }
+                          .resume-preview .resume-item-subtitle { color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; }
+                        ` : `
+                          .resume-preview .resume-section-heading { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; border-color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                          .resume-preview .resume-item-subtitle { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                        `}
+                      ` : ""}
                     `}</style>
 
                     {/* Multi-page resume component with overflow handling */}
@@ -2306,11 +2446,22 @@ const Resume = () => {
                   .resume-preview .resume-role { font-size: var(--resume-size-role) !important; font-style: italic !important; }
                   .resume-preview .resume-section-heading { font-size: var(--resume-size-section) !important; font-weight: 700 !important; }
                   .resume-preview .resume-item-title { font-size: var(--resume-size-title) !important; font-weight: 700 !important; }
-                  .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; color: #4B5563 !important; }
+                  .resume-preview .resume-item-subtitle { font-size: var(--resume-size-subtitle) !important; ${resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "multi" ? "" : "color: #4B5563 !important;"} }
                   .resume-preview .resume-item-description { font-size: var(--resume-size-body) !important; line-height: var(--resume-line-height) !important; color:black; }
                   .resume-preview .resume-entry { margin-bottom: var(--resume-entry-spacing) !important; }
                   .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
                   .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
+                  /* Apply accent colors in advanced multicolor mode */
+                  ${resume.colorConfig?.mode === "advanced" && resume.colorConfig?.accentMode === "multi" ? `
+                    .resume-preview .resume-role { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                    ${resume.layoutConfig?.headerPosition === "top" ? `
+                      .resume-preview .resume-section-heading { color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; border-color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; }
+                      .resume-preview .resume-item-subtitle { color: ${resume.colorConfig.multiAccentColor || "#2c3e50"} !important; }
+                    ` : `
+                      .resume-preview .resume-section-heading { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; border-color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                      .resume-preview .resume-item-subtitle { color: ${resume.colorConfig.multiHeaderAccentColor || resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important; }
+                    `}
+                  ` : ""}
                 `}</style>
 
                 <MultiPageResume

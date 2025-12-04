@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -31,6 +32,7 @@ import {
 import { Menu as MenuIcon } from "@mui/icons-material";
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [user, setUser] = useState(null);
@@ -163,11 +165,27 @@ const Navbar = () => {
   return (
     <>
       <nav className="flex items-center justify-between px-4 py-4 bg-white/30 backdrop-blur-md shadow-lg rounded-xl w-full mb-8">
-        <h1 className="text-2xl font-bold">Resumela</h1>
+        <h1 
+          className="text-2xl font-bold cursor-pointer hover:text-purple-600 transition-colors"
+          onClick={() => navigate("/")}
+        >
+          Resumela
+        </h1>
         
         {/* Desktop Navigation */}
         <ul className="hidden md:flex flex-1 justify-center gap-8 list-none m-0 p-0">
-          <li className="text-lg">Home</li>
+          <li 
+            className="text-lg cursor-pointer hover:text-purple-600 transition-colors"
+            onClick={() => navigate("/")}
+          >
+            Home
+          </li>
+          <li 
+            className="text-lg cursor-pointer hover:text-purple-600 transition-colors"
+            onClick={() => navigate("/marketplace")}
+          >
+            Templates
+          </li>
           <li className="text-lg">About</li>
           <li className="text-lg">Contact</li>
         </ul>
@@ -273,13 +291,45 @@ const Navbar = () => {
               Log In
             </MenuItem>
             <Divider />
-            <MenuItem disabled>Home</MenuItem>
+            <MenuItem
+              onClick={() => {
+                navigate("/");
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Home
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                navigate("/marketplace");
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Templates
+            </MenuItem>
             <MenuItem disabled>About</MenuItem>
             <MenuItem disabled>Contact</MenuItem>
           </>
         ) : (
           <>
             <MenuItem disabled>{user.email}</MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                navigate("/");
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Home
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                navigate("/marketplace");
+                setMobileMenuAnchor(null);
+              }}
+            >
+              Templates
+            </MenuItem>
             <Divider />
             <MenuItem
               onClick={() => {

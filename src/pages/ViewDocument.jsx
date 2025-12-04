@@ -7,7 +7,7 @@ import {
   getCoverLetterContent,
   getCoverLetterLayout,
 } from "../firebase/firestore";
-import MultiPageResume from "../components/MultiPageResume";
+import ResumePreview from "../components/ResumePreview";
 import CoverLetterPreview from "../components/coverletter/CoverLetterPreview";
 
 const ViewDocument = () => {
@@ -27,17 +27,18 @@ const ViewDocument = () => {
 
       try {
         setLoading(true);
-        
+
         // Try loading as Resume first
         const resumeContent = await getResumeContent(docId);
         if (resumeContent) {
           const resumeLayout = await getResumeLayout(docId);
-          
+
           // Construct resume object
           const resumeData = {
             formData: resumeContent.formData || {},
             sections: resumeContent.sections || [],
-            sectionOrder: resumeLayout?.sectionOrder || resumeContent.sectionOrder || [],
+            sectionOrder:
+              resumeLayout?.sectionOrder || resumeContent.sectionOrder || [],
             layoutConfig: resumeLayout?.layoutConfig || {
               columns: "two",
               headerPosition: "top",
@@ -69,23 +70,23 @@ const ViewDocument = () => {
               css: "PT+Serif:wght@400;700",
             },
             entryLayoutConfig: resumeLayout?.entryLayoutConfig || {
-                layout: 4,
-                size: "S",
-                subtitleStyle: "Normal",
-                subtitlePlacement: "Next Line",
-                indentBody: false,
-                listStyle: "Bullet",
-                entryOrder: [],
-                conDateLocDisplay: "inline",
+              layout: 4,
+              size: "S",
+              subtitleStyle: "Normal",
+              subtitlePlacement: "Next Line",
+              indentBody: false,
+              listStyle: "Bullet",
+              entryOrder: [],
+              conDateLocDisplay: "inline",
             },
           };
 
           // Load font
           if (resumeData.selectedFont?.css) {
-             const link = document.createElement("link");
-             link.rel = "stylesheet";
-             link.href = `https://fonts.googleapis.com/css2?family=${resumeData.selectedFont.css}&display=swap`;
-             document.head.appendChild(link);
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = `https://fonts.googleapis.com/css2?family=${resumeData.selectedFont.css}&display=swap`;
+            document.head.appendChild(link);
           }
 
           setData(resumeData);
@@ -98,7 +99,7 @@ const ViewDocument = () => {
         const coverLetterContent = await getCoverLetterContent(docId);
         if (coverLetterContent) {
           const coverLetterLayout = await getCoverLetterLayout(docId);
-          
+
           const coverLetterData = {
             formData: coverLetterContent, // content is the formData for cover letter
             spacingConfig: coverLetterLayout?.spacingConfig || {
@@ -124,13 +125,13 @@ const ViewDocument = () => {
             },
           };
 
-           // Load font
-           if (coverLetterData.selectedFont?.css) {
+          // Load font
+          if (coverLetterData.selectedFont?.css) {
             const link = document.createElement("link");
             link.rel = "stylesheet";
             link.href = `https://fonts.googleapis.com/css2?family=${coverLetterData.selectedFont.css}&display=swap`;
             document.head.appendChild(link);
-         }
+          }
 
           setData(coverLetterData);
           setDocumentType("coverletter");
@@ -205,19 +206,23 @@ const ViewDocument = () => {
         display: "flex",
         justifyContent: "center",
         overflow: "auto",
-        padding: typeof window !== 'undefined' && window.innerWidth < 768 ? "16px" : "40px",
+        padding:
+          typeof window !== "undefined" && window.innerWidth < 768
+            ? "16px"
+            : "40px",
+        paddingTop: "0px",
       }}
     >
       {documentType === "resume" && (
         <div
-            style={{
-                // The container for the resume pages
-                display: "flex",
-                flexDirection: "column",
-                gap: "20px",
-            }}
+          style={{
+            // The container for the resume pages
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+          }}
         >
-             <style>{`
+          <style>{`
                 /* Derived sizes to create a typographic hierarchy based on the base font size */
                 .resume-preview {
                 --resume-size-name: calc(var(--resume-font-size) * 2.2);
@@ -241,45 +246,33 @@ const ViewDocument = () => {
                 .resume-preview .resume-entry-no-margin { margin-bottom: 0 !important; }
                 .resume-preview .resume-entry-less-margin { margin-bottom: calc(var(--resume-entry-spacing) * 0.5) !important; }
             `}</style>
-            <div
-                className="resume-preview"
-                style={{
-                    ["--resume-font-size"]: `${data.spacingConfig.fontSize}pt`,
-                    ["--resume-line-height"]: data.spacingConfig.lineHeight,
-                    ["--resume-entry-spacing"]: `${data.spacingConfig.entrySpacing}px`,
-                    fontFamily: data.selectedFont.family
-                    ? `'${data.selectedFont.family}', serif`
-                    : undefined,
-                    width: A4_WIDTH_PX,
-                    minHeight: A4_HEIGHT_PX,
-                    maxWidth: "100%",
-                }}
-            >
-                <MultiPageResume
-                    resume={data}
-                    A4_WIDTH_PX={A4_WIDTH_PX}
-                    A4_HEIGHT_PX={A4_HEIGHT_PX}
-                    entryLayoutConfig={data.entryLayoutConfig}
-                />
-            </div>
+          <ResumePreview
+            resume={data}
+            A4_WIDTH_PX={A4_WIDTH_PX}
+            A4_HEIGHT_PX={A4_HEIGHT_PX}
+            entryLayoutConfig={data.entryLayoutConfig}
+            combinedPreviewRef={() => {}}
+          />
         </div>
       )}
 
       {documentType === "coverletter" && (
-        <div style={{
+        <div
+          style={{
             display: "flex",
             flexDirection: "column",
             gap: "20px",
-        }}>
-             {/* CoverLetterPreview renders its own container and styles, but we might need to override some */}
-             <CoverLetterPreview
-                formData={data.formData}
-                spacingConfig={data.spacingConfig}
-                selectedFont={data.selectedFont}
-                personalConfig={data.personalConfig}
-                colorConfig={data.colorConfig}
-                combinedPreviewRef={() => {}}
-             />
+          }}
+        >
+          {/* CoverLetterPreview renders its own container and styles, but we might need to override some */}
+          <CoverLetterPreview
+            formData={data.formData}
+            spacingConfig={data.spacingConfig}
+            selectedFont={data.selectedFont}
+            personalConfig={data.personalConfig}
+            colorConfig={data.colorConfig}
+            combinedPreviewRef={() => {}}
+          />
         </div>
       )}
     </div>

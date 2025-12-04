@@ -46,11 +46,11 @@ const SortableItem = React.memo(
                 <FiMenu size={18} />
               </button>
               <div className="flex-1 min-w-0">
-                <h5 className="font-medium text-slate-800 text-sm sm:text-base truncate">
+                <h5 className="font-medium text-slate-800 text-sm sm:text-base ">
                   {getItemSummary()}
                 </h5>
                 {item.data.subtitle && item.data.title && (
-                  <p className="text-xs sm:text-sm text-slate-500 mt-1 truncate">
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1 ">
                     {item.data.subtitle}
                   </p>
                 )}

@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import CoverLetter from './pages/CoverLetter'
 import Resume from './pages/Resume'
 import ViewDocument from './pages/ViewDocument'
+import Marketplace from './pages/Marketplace'
 
 function App() {
 
@@ -15,6 +16,7 @@ function App() {
         <Route path="/cover-letter/:docId?" element={<CoverLetter />} />
         <Route path="/resume/:docId?" element={<Resume />} />
         <Route path="/view/document/:docId" element={<ViewDocument />} />
+        <Route path="/marketplace" element={<Marketplace />} />
       </Routes>
     </Router>
   )

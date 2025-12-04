@@ -42,17 +42,37 @@ const SectionPreview = ({
     return indentBody ? { marginLeft: "1rem", paddingLeft: "0.5rem", borderLeft: "2px solid #e2e8f0" } : {};
   };
 
+  // Get subtitle color (uses header accent in advanced multicolor mode)
+  const getSubtitleColor = () => {
+    if (!colorConfig) return {};
+    const { mode, accentMode, multiHeaderAccentColor, multiHeaderTextColor } = colorConfig;
+    
+    // For advanced multicolor mode, use header accent color
+    if (mode === "advanced" && accentMode === "multi") {
+      const headerAccent = multiHeaderAccentColor || multiHeaderTextColor || "#ffffff";
+      return { color: headerAccent };
+    }
+    
+    return {};
+  };
+
   // Color styles logic
   const getColorStyles = () => {
     if (!colorConfig) return {};
-    const { mode, accentMode, multiAccentColor, selectedColor } = colorConfig;
+    const { mode, accentMode, multiAccentColor, selectedColor, multiHeaderAccentColor, multiHeaderTextColor } = colorConfig;
+    
+    // For advanced multicolor mode, use header accent color
+    if (mode === "advanced" && accentMode === "multi") {
+      const headerAccent = multiHeaderAccentColor || multiHeaderTextColor || "#ffffff";
+      return { color: headerAccent, borderColor: headerAccent };
+    }
+    
     const accent =
       accentMode === "multi"
         ? multiAccentColor || "#2c3e50"
         : selectedColor || "#2c3e50";
     switch (mode) {
       case "basic":
-      case "advanced":
         return accentMode === "multi"
           ? { color: accent, borderColor: accent }
           : selectedColor
@@ -189,7 +209,7 @@ const SectionPreview = ({
         {subtitle && (
           <>
             <span style={{ margin: "0 0.25rem" }}>,</span>
-            <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, display: "inline" }}>{subtitle}</span>
+            <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, display: "inline", ...getSubtitleColor() }}>{subtitle}</span>
           </>
         )}
       </p>
@@ -223,7 +243,7 @@ const SectionPreview = ({
               <span style={{ fontSize: titleFontSize, display: "inline" }}>
                 ,
               </span>
-              <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, margin: 0, display: "inline-block" }}>
+              <span className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, margin: 0, display: "inline-block", ...getSubtitleColor() }}>
                 {subtitle}
               </span>
             </>
@@ -242,7 +262,7 @@ const SectionPreview = ({
     return isPublication ? (
       <>
         {item.data.publisher && (
-          <p className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize }}>
+          <p className="resume-item-subtitle text-slate-700" style={{ ...subtitleStyle, fontSize: subtitleFontSize, ...getSubtitleColor() }}>
             {item.data.publisher}
           </p>
         )}
@@ -260,7 +280,8 @@ const SectionPreview = ({
             ...subtitleStyle, 
             fontSize: subtitleFontSize,
             // marginTop: "0.25rem",
-            marginBottom: "0.25rem"
+            marginBottom: "0.25rem",
+            ...getSubtitleColor()
           }}
         >
           {item.data.subtitle}

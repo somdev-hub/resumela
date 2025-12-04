@@ -21,6 +21,7 @@ export const useResumePagination = ({
   A4_HEIGHT_PX,
   headerHeight = 0,
   profileHeight = 0,
+  selectedFont,
 }) => {
   const [pages, setPages] = useState([]);
   const [isMeasuring, setIsMeasuring] = useState(true);
@@ -67,9 +68,14 @@ export const useResumePagination = ({
 
     // Small delay to ensure rendering is complete
     const timer = setTimeout(measure, 50);
+
+    // Also wait for fonts to be ready
+    if (document.fonts) {
+      document.fonts.ready.then(measure);
+    }
     
     return () => clearTimeout(timer);
-  }, [sections, sectionOrder, layoutConfig, spacingConfig, headerHeight, profileHeight]);
+  }, [sections, sectionOrder, layoutConfig, spacingConfig, headerHeight, profileHeight, selectedFont]);
 
   const calculatePages = (heights, currentHeaderHeight, currentProfileHeight) => {
     if (visibleSections.length === 0) {

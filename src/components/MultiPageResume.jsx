@@ -26,6 +26,7 @@ const MultiPageResume = ({
     layoutConfig: resume.layoutConfig,
     spacingConfig: resume.spacingConfig,
     A4_HEIGHT_PX,
+    selectedFont: resume.selectedFont,
   });
 
   // Helper to render Header (reused for measurement and rendering)
@@ -66,9 +67,9 @@ const MultiPageResume = ({
                   "#2c3e50",
                 color: "#ffffff",
                 padding: "1.5rem",
-                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginLeft: `-${resume.spacingConfig.marginLR * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
                 marginBottom: "0.5rem",
               }
             : // Advanced mode with image: background image in header
@@ -148,6 +149,9 @@ const MultiPageResume = ({
   // Render a single page
   const renderPage = (pageData, pageIndex) => {
     const isFirstPage = pageIndex === 0;
+    const headerPosition = resume.layoutConfig?.headerPosition || "top";
+    const isTwoColumnLayout = resume.layoutConfig?.columns === "two";
+    const shouldShowHeaderInColumn = isTwoColumnLayout && (headerPosition === "left" || headerPosition === "right");
 
     return (
       <div
@@ -156,9 +160,7 @@ const MultiPageResume = ({
         style={{
           width: `${A4_WIDTH_PX}px`,
           height: `${A4_HEIGHT_PX}px`,
-          padding: `${resume.spacingConfig.marginTB * 3.78}px ${
-            resume.spacingConfig.marginLR * 3.78
-          }px`,
+          padding: `${resume.spacingConfig.marginTB * 3.78}px`,
           // Apply background color for multicolor mode (both basic and advanced)
           ...(resume.colorConfig?.accentMode === "multi" &&
           resume.colorConfig?.multiBackgroundColor
@@ -201,8 +203,8 @@ const MultiPageResume = ({
             : {}),
         }}
       >
-        {/* Header (only on first page) */}
-        {isFirstPage && renderHeader()}
+        {/* Header (only on first page, and only at top if not in column layout) */}
+        {isFirstPage && headerPosition === "top" && renderHeader()}
 
         {/* Profile section (only on first page) */}
         {isFirstPage && renderProfile()}
@@ -234,7 +236,39 @@ const MultiPageResume = ({
                 paddingRight: "20px",
               }}
             >
-              <div className="space-y-6">
+              <div 
+                className="space-y-6 column-header-colored-left"
+                style={{
+                  // Apply header colors to left column when header is positioned left and advanced multicolor is enabled
+                  ...(shouldShowHeaderInColumn && headerPosition === "left" && 
+                    resume.colorConfig?.mode === "advanced" && 
+                    resume.colorConfig?.accentMode === "multi"
+                    ? {
+                        backgroundColor:
+                          resume.colorConfig.multiHeaderBackgroundColor ||
+                          resume.colorConfig.multiAccentColor ||
+                          "#2c3e50",
+                        color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
+                        padding: `${resume.spacingConfig.marginTB * 3.78}px`,
+                        marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                        marginRight: "10px",
+                        marginTop:  `-${resume.spacingConfig.marginTB * 3.78}px`,
+                        marginBottom: "0.5rem",
+                        minHeight: `${A4_HEIGHT_PX}px`,
+                      }
+                    : {}),
+                }}
+              >
+                {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && (
+                  <style>{`
+                    .column-header-colored-left,
+                    .column-header-colored-left * {
+                      color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
+                    }
+                  `}</style>
+                )}
+                {/* Header in left column if headerPosition is "left" */}
+                {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && renderHeader()}
                 {pageData.leftSections.map((section) => (
                   <SectionPreview
                     key={section.id}
@@ -246,7 +280,39 @@ const MultiPageResume = ({
                   />
                 ))}
               </div>
-              <div className="space-y-6">
+              <div 
+                className="space-y-6 column-header-colored-right"
+                style={{
+                  // Apply header colors to right column when header is positioned right and advanced multicolor is enabled
+                  ...(shouldShowHeaderInColumn && headerPosition === "right" && 
+                    resume.colorConfig?.mode === "advanced" && 
+                    resume.colorConfig?.accentMode === "multi"
+                    ? {
+                        backgroundColor:
+                          resume.colorConfig.multiHeaderBackgroundColor ||
+                          resume.colorConfig.multiAccentColor ||
+                          "#2c3e50",
+                        color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
+                        padding: "1.5rem",
+                        marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                        marginLeft: "10px",
+                        marginTop:  `-${resume.spacingConfig.marginTB * 3.78}px`,
+                        marginBottom: "0.5rem",
+                        minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                      }
+                    : {}),
+                }}
+              >
+                {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && (
+                  <style>{`
+                    .column-header-colored-right,
+                    .column-header-colored-right * {
+                      color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
+                    }
+                  `}</style>
+                )}
+                {/* Header in right column if headerPosition is "right" */}
+                {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && renderHeader()}
                 {pageData.rightSections.map((section) => (
                   <SectionPreview
                     key={section.id}
@@ -284,7 +350,39 @@ const MultiPageResume = ({
                     gap: "20px",
                   }}
                 >
-                  <div className="space-y-6">
+                  <div 
+                    className="space-y-6 column-header-colored-left"
+                    style={{
+                      // Apply header colors to left column when header is positioned left and advanced multicolor is enabled
+                      ...(shouldShowHeaderInColumn && headerPosition === "left" && 
+                        resume.colorConfig?.mode === "advanced" && 
+                        resume.colorConfig?.accentMode === "multi"
+                        ? {
+                            backgroundColor:
+                              resume.colorConfig.multiHeaderBackgroundColor ||
+                              resume.colorConfig.multiAccentColor ||
+                              "#2c3e50",
+                            color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
+                            padding: "1.5rem",
+                            marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                            marginRight: "10px",
+                            marginTop: "0px",
+                            marginBottom: "0.5rem",
+                            minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                          }
+                        : {}),
+                    }}
+                  >
+                    {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && (
+                      <style>{`
+                        .column-header-colored-left,
+                        .column-header-colored-left * {
+                          color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
+                        }
+                      `}</style>
+                    )}
+                    {/* Header in left column if headerPosition is "left" */}
+                    {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && renderHeader()}
                     {pageData.leftSections.map((section) => (
                       <SectionPreview
                         key={section.id}
@@ -296,7 +394,39 @@ const MultiPageResume = ({
                       />
                     ))}
                   </div>
-                  <div className="space-y-6">
+                  <div 
+                    className="space-y-6 column-header-colored-right"
+                    style={{
+                      // Apply header colors to right column when header is positioned right and advanced multicolor is enabled
+                      ...(shouldShowHeaderInColumn && headerPosition === "right" && 
+                        resume.colorConfig?.mode === "advanced" && 
+                        resume.colorConfig?.accentMode === "multi"
+                        ? {
+                            backgroundColor:
+                              resume.colorConfig.multiHeaderBackgroundColor ||
+                              resume.colorConfig.multiAccentColor ||
+                              "#2c3e50",
+                            color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
+                            padding: "1.5rem",
+                            marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                            marginLeft: "10px",
+                            marginTop: "0px",
+                            marginBottom: "0.5rem",
+                            minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                          }
+                        : {}),
+                    }}
+                  >
+                    {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && (
+                      <style>{`
+                        .column-header-colored-right,
+                        .column-header-colored-right * {
+                          color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
+                        }
+                      `}</style>
+                    )}
+                    {/* Header in right column if headerPosition is "right" */}
+                    {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && renderHeader()}
                     {pageData.rightSections.map((section) => (
                       <SectionPreview
                         key={section.id}

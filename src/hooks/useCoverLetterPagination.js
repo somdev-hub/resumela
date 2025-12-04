@@ -13,6 +13,7 @@ export const useCoverLetterPagination = ({
   contentBlocks,
   spacingConfig,
   A4_HEIGHT_PX,
+  selectedFont,
 }) => {
   const [pages, setPages] = useState([]);
   const [isMeasuring, setIsMeasuring] = useState(true);
@@ -59,7 +60,7 @@ export const useCoverLetterPagination = ({
     }
     
     return () => clearTimeout(timer);
-  }, [contentBlocks, spacingConfig, A4_HEIGHT_PX]);
+  }, [contentBlocks, spacingConfig, A4_HEIGHT_PX, selectedFont]);
 
   const calculatePages = (heights) => {
     const newPages = [];

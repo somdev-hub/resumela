@@ -183,6 +183,7 @@ const CoverLetterPreview = ({
     contentBlocks,
     spacingConfig,
     A4_HEIGHT_PX,
+    selectedFont,
   });
 
   const renderHeader = () => {

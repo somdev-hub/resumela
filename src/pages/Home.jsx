@@ -7,7 +7,7 @@ import Navbar from "../components/Navbar";
 import Cards from "../components/Cards";
 import { useNavigate, useLocation } from "react-router-dom";
 import { initFirestore } from "../firebase/firestore";
-import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, updateDoc, setDoc } from "firebase/firestore";
 import {
   Dialog,
   DialogTitle,
@@ -293,10 +293,12 @@ const Home = () => {
 
       if (!sourceData) return;
 
+      // Generate a unique ID for the new document
+      const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const newTitle = `${sourceDoc.title} (Copy)`;
       const sourceContent = sourceData.data();
 
-      // Add the duplicate document with a new timestamp
+      // Add the duplicate document with a new timestamp and new ID
       const newDocData = {
         ...sourceContent,
         title: newTitle,
@@ -304,8 +306,8 @@ const Home = () => {
         updatedAt: new Date(),
       };
 
-      const newDocRef = doc(collection(db, collectionName));
-      await updateDoc(newDocRef, newDocData);
+      const newDocRef = doc(db, collectionName, newDocId);
+      await setDoc(newDocRef, newDocData);
 
       // Also try to duplicate layout if it exists
       const layoutCollectionName =
@@ -316,38 +318,29 @@ const Home = () => {
           (d) => d.id === selectedDocId
         );
         if (sourceLayout) {
-          const newLayoutRef = doc(collection(db, layoutCollectionName));
-          await updateDoc(newLayoutRef, sourceLayout.data());
+          const newLayoutRef = doc(db, layoutCollectionName, newDocId);
+          await setDoc(newLayoutRef, sourceLayout.data());
         }
       } catch (e) {
         console.debug("No layout to duplicate:", e);
       }
 
-      // Refetch the documents
-      const updatedSnaps = await getDocs(collection(db, collectionName));
-      const updatedItems = updatedSnaps.docs.map((d) => {
-        const data = d.data() || {};
-        const title = data.title || "Untitled";
-        const updatedAt = data.updatedAt
-          ? data.updatedAt.toDate
-            ? data.updatedAt.toDate().toISOString()
-            : data.updatedAt
-          : new Date().toISOString();
-        return {
-          id: d.id,
-          title,
-          updatedAt,
-          type: editDocType,
-          created: true,
-        };
-      });
+      // Add the new document to the resumes list
+      const newItem = {
+        id: newDocId,
+        title: newTitle,
+        updatedAt: new Date().toISOString(),
+        type: editDocType,
+        created: true,
+      };
+      
+      setResumes((prev) => [newItem, ...prev].sort(
+        (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+      ));
 
-      setResumes((prev) => {
-        const filtered = prev.filter((r) => r.type !== editDocType);
-        return [...filtered, ...updatedItems].sort(
-          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-        );
-      });
+      // Navigate to the new document
+      if (editDocType === "resume") navigate(`/resume/${newDocId}`);
+      else if (editDocType === "cover") navigate(`/cover-letter/${newDocId}`);
     } catch (err) {
       console.error("Failed to duplicate document:", err);
     }
