@@ -989,6 +989,55 @@ const Resume = () => {
         entryLayoutConfig: entryLayoutConfig,
       });
 
+      // Validate that all critical configurations are present
+      const requiredLayoutProps = [
+        'layoutConfig',
+        'spacingConfig',
+        'personalConfig',
+        'colorConfig',
+        'selectedFont',
+        'sectionOrder',
+        'entryLayoutConfig'
+      ];
+      
+      const missingProps = requiredLayoutProps.filter(prop => !(prop in layout));
+      if (missingProps.length > 0) {
+        console.warn('Warning: Missing layout properties:', missingProps);
+      }
+
+      // Validate colorConfig has all required subproperties
+      if (layout.colorConfig) {
+        const requiredColorProps = [
+          'mode',
+          'accentMode',
+          'selectedColor',
+          'multiPreset',
+          'multiTextColor',
+          'multiBackgroundColor',
+          'multiAccentColor',
+          'multiHeaderTextColor',
+          'multiHeaderBackgroundColor',
+          'multiHeaderAccentColor',
+          'selectedImage',
+          'imageOpacity'
+        ];
+        const missingColorProps = requiredColorProps.filter(prop => !(prop in layout.colorConfig));
+        if (missingColorProps.length > 0) {
+          console.warn('Warning: Missing colorConfig properties:', missingColorProps);
+        }
+      }
+
+      // Log what's being saved for debugging
+      console.log('Saving resume with layout config:', {
+        layoutConfig: layout.layoutConfig,
+        spacingConfig: layout.spacingConfig,
+        personalConfig: layout.personalConfig,
+        colorConfig: layout.colorConfig,
+        selectedFont: layout.selectedFont,
+        sectionOrder: layout.sectionOrder,
+        entryLayoutConfig: layout.entryLayoutConfig,
+      });
+
       // Use the existing docId from URL/state
       const docId = firestoreDocId;
       if (!docId) {
@@ -1072,16 +1121,27 @@ const Resume = () => {
         icon: availableSections.find((a) => a.id === s.id)?.icon,
       }));
 
-      setResume((prev) => ({
-        ...prev,
-        ...(content || {}),
-        sections: hydratedSections.length
-          ? hydratedSections
-          : content?.sections || prev.sections,
-        ...(layout || {}),
-        sectionOrder: validSectionOrder,
-      }));
+      // Explicitly restore all layout configurations to ensure nothing is missed
+      setResume((prev) => {
+        const restored = {
+          ...prev,
+          // Content data
+          ...(content?.formData && { formData: content.formData }),
+          sections: hydratedSections.length
+            ? hydratedSections
+            : content?.sections || prev.sections,
+          // Layout configurations - explicit restoration
+          ...(layout?.layoutConfig && { layoutConfig: layout.layoutConfig }),
+          ...(layout?.spacingConfig && { spacingConfig: layout.spacingConfig }),
+          ...(layout?.personalConfig && { personalConfig: layout.personalConfig }),
+          ...(layout?.colorConfig && { colorConfig: layout.colorConfig }),
+          ...(layout?.selectedFont && { selectedFont: layout.selectedFont }),
+          ...(layout?.sectionOrder && { sectionOrder: validSectionOrder }),
+        };
+        return restored;
+      });
 
+      // Restore entryLayoutConfig separately
       if (layout?.entryLayoutConfig) {
         setEntryLayoutConfig(layout.entryLayoutConfig);
       }
@@ -1089,7 +1149,9 @@ const Resume = () => {
       setFirestoreDocId(docId);
       try {
         localStorage.setItem("resume_firestore_docId", docId);
-      } catch (e) {}
+      } catch {
+        // ignore localStorage errors
+      }
 
       // Update last saved signature from the loaded content
       try {
@@ -1099,7 +1161,9 @@ const Resume = () => {
         });
         lastSavedSignatureRef.current = sig;
         setLastSavedAt(new Date().toISOString());
-      } catch (e) {}
+      } catch {
+        // ignore signature update errors
+      }
 
       showSnackbar("success", "Loaded", 2000);
     } catch (err) {

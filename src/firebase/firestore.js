@@ -109,6 +109,7 @@ export async function saveResumeContent(docId, content) {
 export async function saveResumeLayout(docId, layout) {
   const db = initFirestore();
   if (docId) {
+    console.log('[saveResumeLayout] Saving layout with properties:', Object.keys(layout));
     // Check if document already exists
     const docRef = doc(db, "resume_layout", docId);
     const docSnap = await getDoc(docRef);
@@ -119,6 +120,7 @@ export async function saveResumeLayout(docId, layout) {
       ...(isNew ? { createdAt: serverTimestamp() } : {}),
       updatedAt: serverTimestamp(),
     });
+    console.log('[saveResumeLayout] Successfully saved layout');
     try {
       cacheSet("layout", docId, layout);
     } catch {
@@ -130,6 +132,7 @@ export async function saveResumeLayout(docId, layout) {
     ...layout,
     createdAt: serverTimestamp(),
   });
+  console.log('[saveResumeLayout] Created new layout with ID:', ref.id);
   try {
     cacheSet("layout", ref.id, layout);
   } catch {
@@ -157,13 +160,19 @@ export async function getResumeContent(docId) {
 export async function getResumeLayout(docId) {
   const db = initFirestore();
   const cached = cacheGet("layout", docId);
-  if (cached) return cached;
+  if (cached) {
+    console.log('[getResumeLayout] Returning cached layout with properties:', Object.keys(cached));
+    return cached;
+  }
 
   // no remote cache configured; fall back to Firestore
 
   const snap = await getDoc(doc(db, "resume_layout", docId));
   const data = snap.exists() ? snap.data() : null;
-  if (data) cacheSet("layout", docId, data);
+  if (data) {
+    console.log('[getResumeLayout] Retrieved layout from Firestore with properties:', Object.keys(data));
+    cacheSet("layout", docId, data);
+  }
   return data;
 }
 

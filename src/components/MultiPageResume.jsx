@@ -32,12 +32,18 @@ const MultiPageResume = ({
   // Helper to render Header (reused for measurement and rendering)
   const renderHeader = () => {
     const headerAlign = resume.personalConfig?.align || "center";
+    const headerPosition = resume.layoutConfig?.headerPosition || "top";
     const headerClass =
       headerAlign === "left"
         ? "resume-header flex gap-6 items-center"
         : headerAlign === "right"
         ? "resume-header flex gap-6 flex-row-reverse items-center"
         : "resume-header block";
+
+    // Determine if header is in a column (left/right position)
+    const isHeaderInColumn = headerPosition === "left" || headerPosition === "right";
+    // Conversion factor: different when header is in column vs standalone
+    const marginMultiplier = isHeaderInColumn ? 3.0 : 3.78;
 
     return (
       <div
@@ -52,9 +58,9 @@ const MultiPageResume = ({
                 backgroundColor: resume.colorConfig.selectedColor,
                 color: "#ffffff",
                 padding: "1.5rem",
-                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginLeft: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * marginMultiplier}px`,
                 marginBottom: "1.5rem",
               }
             : // Advanced mode with multi: separate header background color
@@ -67,9 +73,9 @@ const MultiPageResume = ({
                   "#2c3e50",
                 color: "#ffffff",
                 padding: "1.5rem",
-                marginLeft: `-${resume.spacingConfig.marginLR * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
-                marginRight: `-${resume.spacingConfig.marginLR * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
-                marginTop: `-${resume.spacingConfig.marginTB * (headerAlign === "left" || headerAlign === "right" ? 3.00 : 3.78)}px`,
+                marginLeft: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * marginMultiplier}px`,
                 marginBottom: "0.5rem",
               }
             : // Advanced mode with image: background image in header
@@ -87,9 +93,9 @@ const MultiPageResume = ({
                 backgroundRepeat: "no-repeat",
                 color: "#ffffff",
                 padding: "1.5rem",
-                marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
-                marginTop: `-${resume.spacingConfig.marginTB * 3.78}px`,
+                marginLeft: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginRight: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
+                marginTop: `-${resume.spacingConfig.marginTB * marginMultiplier}px`,
                 marginBottom: "1.5rem",
               }
             : {}),
@@ -152,6 +158,9 @@ const MultiPageResume = ({
     const headerPosition = resume.layoutConfig?.headerPosition || "top";
     const isTwoColumnLayout = resume.layoutConfig?.columns === "two";
     const shouldShowHeaderInColumn = isTwoColumnLayout && (headerPosition === "left" || headerPosition === "right");
+    
+    // Margin multiplier changes based on header position
+    const marginMultiplier = 3.78;
 
     return (
       <div
@@ -250,10 +259,12 @@ const MultiPageResume = ({
                           "#2c3e50",
                         color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
                         padding: `${resume.spacingConfig.marginTB * 3.78}px`,
-                        marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                        marginLeft: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
                         marginRight: "10px",
-                        marginTop:  `-${resume.spacingConfig.marginTB * 3.78}px`,
+                        marginTop: `-${resume.spacingConfig.marginTB * marginMultiplier}px`,
                         marginBottom: "0.5rem",
+                        
+                        // minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
                         minHeight: `${A4_HEIGHT_PX}px`,
                       }
                     : {}),
@@ -294,11 +305,12 @@ const MultiPageResume = ({
                           "#2c3e50",
                         color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
                         padding: "1.5rem",
-                        marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                        marginRight: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
                         marginLeft: "10px",
-                        marginTop:  `-${resume.spacingConfig.marginTB * 3.78}px`,
+                        marginTop: `-${resume.spacingConfig.marginTB * marginMultiplier}px`,
                         marginBottom: "0.5rem",
-                        minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                        // minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                        minHeight: `${A4_HEIGHT_PX}px`,
                       }
                     : {}),
                 }}
@@ -364,7 +376,7 @@ const MultiPageResume = ({
                               "#2c3e50",
                             color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
                             padding: "1.5rem",
-                            marginLeft: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                            marginLeft: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
                             marginRight: "10px",
                             marginTop: "0px",
                             marginBottom: "0.5rem",
@@ -408,11 +420,12 @@ const MultiPageResume = ({
                               "#2c3e50",
                             color: resume.colorConfig.multiHeaderTextColor || "#ffffff",
                             padding: "1.5rem",
-                            marginRight: `-${resume.spacingConfig.marginLR * 3.78}px`,
+                            marginRight: `-${resume.spacingConfig.marginLR * marginMultiplier}px`,
                             marginLeft: "10px",
                             marginTop: "0px",
                             marginBottom: "0.5rem",
                             minHeight: `${A4_HEIGHT_PX - resume.spacingConfig.marginTB * 3.78 * 2}px`,
+                            // minHeight: `${A4_HEIGHT_PX}px`,
                           }
                         : {}),
                     }}
@@ -461,7 +474,24 @@ const MultiPageResume = ({
           padding: 0,
         }}
       >
-        <div id="measure-header">{renderHeader()}</div>
+        <div
+          id="measure-header"
+          style={{
+            width:
+              (resume.layoutConfig.headerPosition === "left" ||
+                resume.layoutConfig.headerPosition === "right") &&
+              (resume.layoutConfig.columns === "two" ||
+                resume.layoutConfig.columns === "mix")
+                ? `${
+                    resume.layoutConfig.headerPosition === "left"
+                      ? resume.layoutConfig.leftColumnWidth
+                      : resume.layoutConfig.rightColumnWidth
+                  }%`
+                : "100%",
+          }}
+        >
+          {renderHeader()}
+        </div>
         <div id="measure-profile">{renderProfile()}</div>
         {resume.sections.map((section) => {
           // Determine width for this section based on layout
