@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import MultiPageResume from "./MultiPageResume";
 
 const ResumePreview = ({
@@ -15,7 +15,12 @@ const ResumePreview = ({
   loadFromFirestore,
   saveToFirestore,
   scale = null, // Optional scale override (e.g., for card display)
+  scopeId = null, // Optional unique ID for scoping styles to prevent conflicts
 }) => {
+  // Generate unique ID for this instance if not provided
+  const uniqueId = useMemo(() => {
+    return scopeId || `resume-preview-${Math.random().toString(36).substr(2, 9)}`;
+  }, [scopeId]);
   // fallback to basic values if undefined
   const fontSize = resume?.spacingConfig?.fontSize || 9;
   const lineHeight = resume?.spacingConfig?.lineHeight || 1.25;
@@ -30,11 +35,12 @@ const ResumePreview = ({
       : 1;
 
   return (
-    <div className="relative" id="preview-resume">
+    <div className="relative" id={`preview-resume-${uniqueId}`}>
       <div
         ref={combinedPreviewRef}
-        id="resume-preview"
+        id={`resume-preview-${uniqueId}`}
         className="resume-preview relative"
+        data-scope-id={uniqueId}
         style={{
           ["--resume-font-size"]: `${fontSize}pt`,
           ["--resume-line-height"]: lineHeight,
@@ -95,6 +101,7 @@ const ResumePreview = ({
           loadFromFirestore={loadFromFirestore}
           saveToFirestore={saveToFirestore}
           entryLayoutConfig={entryLayoutConfig}
+          scopeId={uniqueId}
         />
       </div>
     </div>

@@ -18,7 +18,16 @@ const MultiPageResume = ({
   A4_WIDTH_PX,
   A4_HEIGHT_PX,
   entryLayoutConfig,
+  scopeId,
 }) => {
+  // Helper function to create scoped or global selectors based on whether scopeId is provided
+  const getScopeSelector = (selector) => {
+    if (!scopeId) {
+      return selector; // No scoping, use global selector
+    }
+    // Return scoped selector
+    return `#resume-preview-${scopeId} ${selector}`;
+  };
   // Use the pagination hook
   const { pages, measureRef } = useResumePagination({
     sections: resume.sections,
@@ -158,6 +167,9 @@ const MultiPageResume = ({
     const headerPosition = resume.layoutConfig?.headerPosition || "top";
     const isTwoColumnLayout = resume.layoutConfig?.columns === "two";
     const shouldShowHeaderInColumn = isTwoColumnLayout && (headerPosition === "left" || headerPosition === "right");
+
+    console.log(headerPosition);
+    
     
     // Margin multiplier changes based on header position
     const marginMultiplier = 3.78;
@@ -272,8 +284,8 @@ const MultiPageResume = ({
               >
                 {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && (
                   <style>{`
-                    .column-header-colored-left,
-                    .column-header-colored-left * {
+                    ${getScopeSelector(".column-header-colored-left")},
+                    ${getScopeSelector(".column-header-colored-left")} * {
                       color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
                     }
                   `}</style>
@@ -317,8 +329,8 @@ const MultiPageResume = ({
               >
                 {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && (
                   <style>{`
-                    .column-header-colored-right,
-                    .column-header-colored-right * {
+                    ${getScopeSelector(".column-header-colored-right")},
+                    ${getScopeSelector(".column-header-colored-right")} * {
                       color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
                     }
                   `}</style>
@@ -387,8 +399,8 @@ const MultiPageResume = ({
                   >
                     {isFirstPage && shouldShowHeaderInColumn && headerPosition === "left" && (
                       <style>{`
-                        .column-header-colored-left,
-                        .column-header-colored-left * {
+                        ${getScopeSelector(".column-header-colored-left")},
+                        ${getScopeSelector(".column-header-colored-left")} * {
                           color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
                         }
                       `}</style>
@@ -432,8 +444,8 @@ const MultiPageResume = ({
                   >
                     {isFirstPage && shouldShowHeaderInColumn && headerPosition === "right" && (
                       <style>{`
-                        .column-header-colored-right,
-                        .column-header-colored-right * {
+                        ${getScopeSelector(".column-header-colored-right")},
+                        ${getScopeSelector(".column-header-colored-right")} * {
                           color: ${resume.colorConfig.multiHeaderTextColor || "#ffffff"} !important;
                         }
                       `}</style>

@@ -1,12 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Sparkles, Zap, X } from "lucide-react";
+import { Dialog, IconButton } from "@mui/material";
 import Navbar from "../components/Navbar";
 import MarketplaceCard from "../components/marketplace/MarketplaceCard";
+import ResumePreview from "../components/ResumePreview";
+import firestore from "../firebase/firestore";
 
 const Marketplace = () => {
+  const A4_WIDTH_PX = 794; // 210mm at 96dpi
+  const A4_HEIGHT_PX = 1123;
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Fetch templates from Firestore on component mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setLoading(true);
+        const fetchedTemplates = await firestore.getAllTemplates();
+        setTemplates(fetchedTemplates);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching templates:", err);
+        setError("Failed to load templates");
+        setTemplates([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTemplates();
+  }, []);
+
+  if(selectedTemplate){
+    console.log(selectedTemplate.layout);
+    
+  }
 
   const categories = [
     { id: "all", label: "All Templates", icon: "✨" },
@@ -53,15 +88,18 @@ const Marketplace = () => {
 
           {/* Subheading */}
           <p className="text-lg sm:text-xl text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Choose from expertly crafted resume templates designed by industry professionals. 
-            Make a lasting impression with modern designs that showcase your skills.
+            Choose from expertly crafted resume templates designed by industry
+            professionals. Make a lasting impression with modern designs that
+            showcase your skills.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <button
               onClick={() => {
-                const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const newDocId = `${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substr(2, 9)}`;
                 navigate(`/resume/${newDocId}`);
               }}
               className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg hover:shadow-2xl"
@@ -81,15 +119,21 @@ const Marketplace = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 sm:gap-8 py-8">
             <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-purple-400 mb-2">8+</p>
+              <p className="text-3xl sm:text-4xl font-bold text-purple-400 mb-2">
+                {templates.length}+
+              </p>
               <p className="text-sm text-gray-400">Premium Templates</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-pink-400 mb-2">1K+</p>
+              <p className="text-3xl sm:text-4xl font-bold text-pink-400 mb-2">
+                1K+
+              </p>
               <p className="text-sm text-gray-400">Happy Users</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">100%</p>
+              <p className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">
+                100%
+              </p>
               <p className="text-sm text-gray-400">Customizable</p>
             </div>
           </div>
@@ -134,31 +178,56 @@ const Marketplace = () => {
 
           {/* Templates Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div
-                key={index}
-                className="group relative rounded-xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 hover:border-purple-500/50 transition-all transform hover:scale-105 hover:shadow-2xl"
-              >
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20"></div>
-
-                {/* Card Content */}
-                <MarketplaceCard />
-
-                {/* Overlay Buttons */}
-                <div className="absolute inset-0 flex items-end justify-center p-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => {
-                      const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                      navigate(`/resume/${newDocId}`);
-                    }}
-                    className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
-                  >
-                    Use Template
-                  </button>
-                </div>
+            {loading ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-300 text-lg">Loading templates...</p>
               </div>
-            ))}
+            ) : error ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-red-400 text-lg">{error}</p>
+              </div>
+            ) : templates.length > 0 ? (
+              templates.map((template) => (
+                <div
+                  key={template.id}
+                  onClick={() => {
+                    setSelectedTemplate(template);
+                    setDialogOpen(true);
+                  }}
+                  className="group relative rounded-xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 hover:border-purple-500/50 transition-all transform hover:scale-105 hover:shadow-2xl cursor-pointer"
+                >
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20"></div>
+
+                  {/* Card Content */}
+                  <MarketplaceCard template={template} />
+
+                  {/* Overlay Buttons */}
+                  <div className="absolute inset-0 flex items-end justify-center p-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newDocId = `${Date.now()}_${Math.random()
+                          .toString(36)
+                          .substr(2, 9)}`;
+                        navigate(`/resume/${newDocId}`, {
+                          state: { templateData: template },
+                        });
+                      }}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
+                    >
+                      Use Template
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-300 text-lg">
+                  No templates available yet. Start by creating one!
+                </p>
+              </div>
+            )}
           </div>
 
           {/* CTA Section */}
@@ -168,11 +237,14 @@ const Marketplace = () => {
                 Can't find what you're looking for?
               </h3>
               <p className="text-gray-300 mb-6">
-                Create a completely custom resume from scratch with our powerful builder
+                Create a completely custom resume from scratch with our powerful
+                builder
               </p>
               <button
                 onClick={() => {
-                  const newDocId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                  const newDocId = `${Date.now()}_${Math.random()
+                    .toString(36)
+                    .substr(2, 9)}`;
                   navigate(`/resume/${newDocId}`);
                 }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white text-purple-900 font-bold rounded-lg hover:bg-gray-100 transition-all"
@@ -184,6 +256,65 @@ const Marketplace = () => {
           </div>
         </div>
       </div>
+
+      {/* Template Preview Dialog - A4 Sized */}
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth={false}
+        fullWidth={false}
+        PaperProps={{
+          style: {
+            height: A4_HEIGHT_PX,
+            width: A4_WIDTH_PX + 20, // adding some padding
+          }
+        }}
+      >
+        {/* A4 Resume Preview */}
+        {selectedTemplate && (
+          <div className="flex-1 flex items-center justify-center hide-scrollbar">
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+              <ResumePreview
+                resume={{
+                  formData: selectedTemplate.content?.formData || {},
+                  sections: selectedTemplate.content?.sections || [],
+                  layoutConfig: selectedTemplate.layout?.layoutConfig || {
+                    columns: "two",
+                    headerPosition: "top",
+                    leftColumnWidth: 50,
+                    rightColumnWidth: 50,
+                  },
+                  spacingConfig: selectedTemplate.layout?.spacingConfig || {
+                    fontSize: 9,
+                    lineHeight: 1.25,
+                    marginLR: 10,
+                    marginTB: 10,
+                    entrySpacing: 0,
+                  },
+                  personalConfig: selectedTemplate.layout?.personalConfig || {
+                    align: "center",
+                    arrangement: "single",
+                    contactStyle: "icon",
+                  },
+                  colorConfig: selectedTemplate.layout?.colorConfig,
+                  selectedFont: selectedTemplate.layout?.selectedFont || {
+                    family: "PT Serif",
+                    category: "serif",
+                    css: "PT+Serif:wght@400;700",
+                  },
+                  sectionOrder: selectedTemplate.layout?.sectionOrder || [],
+                }}
+                A4_WIDTH_PX={794}
+                A4_HEIGHT_PX={1123}
+                entryLayoutConfig={
+                  selectedTemplate.layout?.entryLayoutConfig || {}
+                }
+                scale={1}
+              />
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       {/* Animated CSS */}
       <style>{`

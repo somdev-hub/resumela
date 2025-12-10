@@ -15,7 +15,11 @@ import { Star, Heart } from "lucide-react";
 import ResumePreview from "../ResumePreview";
 import temp1 from "./templates/temp1.json";
 
-const MarketplaceCard = () => {
+const MarketplaceCard = ({ template }) => {
+  // Generate a unique scope ID for this card to prevent color class conflicts
+  const scopeId = useMemo(() => {
+    return template?.id || `card-${Math.random().toString(36).substr(2, 9)}`;
+  }, [template?.id]);
   const [resume, setResume] = useState({
     formData: {
       fullName: "",
@@ -89,10 +93,15 @@ const MarketplaceCard = () => {
   });
   const A4_WIDTH_PX = 794; // 210mm at 96dpi
   const A4_HEIGHT_PX = 1123; // 297mm at 96dpi
-  const dummyResumeData = useMemo(() => temp1.content, []);
-  const dummyLayoutConfig = useMemo(() => temp1.layout, []);
-
-  const [isFavorite, setIsFavorite] = useState(false);
+  
+  // Use provided template data or fall back to temp1
+  const dummyResumeData = useMemo(() => {
+    return template?.content || temp1.content;
+  }, [template]);
+  
+  const dummyLayoutConfig = useMemo(() => {
+    return template?.layout || temp1.layout;
+  }, [template]);
 
   useEffect(() => {
     const loadFromFirestore = async () => {
@@ -180,6 +189,7 @@ const MarketplaceCard = () => {
           entryLayoutConfig={dummyLayoutConfig.entryLayoutConfig}
           combinedPreviewRef={() => {}}
           scale={0.34}
+          scopeId={scopeId}
         />
       </Card>
     </>

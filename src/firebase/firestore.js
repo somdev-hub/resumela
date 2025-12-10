@@ -299,6 +299,49 @@ export async function getAllResumes() {
   }
 }
 
+// Save template (content + layout) into `templates` collection.
+// Templates can be created and shared with other users.
+export async function saveTemplate(templateData) {
+  const db = initFirestore();
+  try {
+    const { content, layout, name } = templateData;
+    
+    const ref = await addDoc(collection(db, "templates"), {
+      content,
+      layout,
+      name: name || "Untitled Template",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log("[saveTemplate] Created template with ID:", ref.id);
+    return ref.id;
+  } catch (err) {
+    console.error("[saveTemplate] Error:", err);
+    throw err;
+  }
+}
+
+// Retrieve all templates from the templates collection
+export async function getAllTemplates() {
+  const db = initFirestore();
+  try {
+    const templateSnaps = await getDocs(collection(db, "templates"));
+    const templates = [];
+    templateSnaps.forEach((snap) => {
+      templates.push({
+        id: snap.id,
+        ...snap.data(),
+      });
+    });
+    console.log("[getAllTemplates] Retrieved", templates.length, "templates");
+    return templates;
+  } catch (err) {
+    console.error("[getAllTemplates] Error:", err);
+    return [];
+  }
+}
+
 export default {
   initFirestore,
   saveResumeContent,
@@ -310,4 +353,6 @@ export default {
   getCoverLetterContent,
   getCoverLetterLayout,
   getAllResumes,
+  saveTemplate,
+  getAllTemplates,
 };
