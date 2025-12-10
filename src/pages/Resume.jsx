@@ -35,7 +35,7 @@ import AddSectionDialog from "../components/AddSectionDialog";
 import RichTextEditor from "../components/RichTextEditor";
 import SectionPreview from "../components/SectionPreview";
 import { renderSectionForm } from "../components/SectionForms";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 import { availableSections } from "../customization/AvailableSections";
 import { fontsByCategory } from "../customization/Fonts";
@@ -303,6 +303,7 @@ const Resume = () => {
   }, [resume.selectedFont]);
 
   const params = useParams();
+  const location = useLocation();
 
   // On mount or when docId param changes, handle document loading/creation
   useEffect(() => {
@@ -331,44 +332,87 @@ const Resume = () => {
           // Document exists, load it
           await loadFromFirestore(urlDocId);
         } else {
-          // Document doesn't exist, create it as "Untitled Resume"
-          const initialContent = {
-            formData: {
-              fullName: "",
-              title: "",
-              email: "",
-              phone: "",
-              location: "",
-              linkedin: "",
-              github: "",
-              linkedinUrl: "",
-              githubUrl: "",
-              profile: "",
-              photoUrl: null,
-            },
-            sections: [],
-          };
+          // Check if template data is passed from Marketplace
+          const templateData = location.state?.templateData;
 
-          const initialLayout = {
-            layoutConfig: resume.layoutConfig,
-            spacingConfig: resume.spacingConfig,
-            personalConfig: resume.personalConfig,
-            selectedFont: resume.selectedFont,
-            sectionOrder: resume.sectionOrder,
-          };
+          if (templateData && templateData.content && templateData.layout) {
+            // Initialize with template data
+            const initialContent = {
+              formData: templateData.content.formData || {
+                fullName: "",
+                title: "",
+                email: "",
+                phone: "",
+                location: "",
+                linkedin: "",
+                github: "",
+                linkedinUrl: "",
+                githubUrl: "",
+                profile: "",
+                photoUrl: null,
+              },
+              sections: templateData.content.sections || [],
+            };
 
-          // Create the document in Firestore with the URL's docId
-          await firestore.saveResumeContent(urlDocId, {
-            ...initialContent,
-            title: "Untitled Resume",
-          });
-          await firestore.saveResumeLayout(urlDocId, initialLayout);
+            const initialLayout = {
+              layoutConfig: templateData.layout.layoutConfig || resume.layoutConfig,
+              spacingConfig: templateData.layout.spacingConfig || resume.spacingConfig,
+              personalConfig: templateData.layout.personalConfig || resume.personalConfig,
+              selectedFont: templateData.layout.selectedFont || resume.selectedFont,
+              sectionOrder: templateData.layout.sectionOrder || resume.sectionOrder,
+            };
 
-          // Update signature to prevent immediate re-save
-          lastSavedSignatureRef.current = computeSignature(resume);
-          setLastSavedAt(new Date().toISOString());
+            // Create the document in Firestore with the template data
+            await firestore.saveResumeContent(urlDocId, {
+              ...initialContent,
+              title: "Untitled Resume",
+            });
+            await firestore.saveResumeLayout(urlDocId, initialLayout);
 
-          showSnackbar("success", "New resume created", 2000);
+            // Load the created template-based resume
+            await loadFromFirestore(urlDocId);
+
+            showSnackbar("success", "Template loaded successfully", 2000);
+          } else {
+            // Document doesn't exist and no template provided, create blank resume
+            const initialContent = {
+              formData: {
+                fullName: "",
+                title: "",
+                email: "",
+                phone: "",
+                location: "",
+                linkedin: "",
+                github: "",
+                linkedinUrl: "",
+                githubUrl: "",
+                profile: "",
+                photoUrl: null,
+              },
+              sections: [],
+            };
+
+            const initialLayout = {
+              layoutConfig: resume.layoutConfig,
+              spacingConfig: resume.spacingConfig,
+              personalConfig: resume.personalConfig,
+              selectedFont: resume.selectedFont,
+              sectionOrder: resume.sectionOrder,
+            };
+
+            // Create the document in Firestore with the URL's docId
+            await firestore.saveResumeContent(urlDocId, {
+              ...initialContent,
+              title: "Untitled Resume",
+            });
+            await firestore.saveResumeLayout(urlDocId, initialLayout);
+
+            // Update signature to prevent immediate re-save
+            lastSavedSignatureRef.current = computeSignature(resume);
+            setLastSavedAt(new Date().toISOString());
+
+            showSnackbar("success", "New resume created", 2000);
+          }
         }
 
         // Persist the docId to localStorage
@@ -1091,6 +1135,87 @@ const Resume = () => {
     }
   };
 
+  // Save resume as template to Firestore templates collection
+  const handleSaveAsTemplate = async () => {
+    try {
+      setIsSaving(true);
+      showSnackbar("info", "Saving template...", 0);
+
+      // Sanitize objects for Firestore (remove functions, DOM nodes, undefined)
+      const sanitizeForFirestore = (v) => {
+        if (v == null) return v;
+        if (typeof v === "function") return undefined;
+        if (v instanceof Date) return v.toISOString();
+        if (Array.isArray(v))
+          return v
+            .map((x) => sanitizeForFirestore(x))
+            .filter((x) => x !== undefined);
+        if (typeof v === "object") {
+          const out = {};
+          Object.keys(v).forEach((k) => {
+            try {
+              const val = v[k];
+              if (typeof val === "function" || typeof val === "undefined") {
+                return;
+              }
+              const s = sanitizeForFirestore(val);
+              if (typeof s !== "undefined") out[k] = s;
+            } catch (e) {
+              // skip problematic keys
+            }
+          });
+          return out;
+        }
+        return v;
+      };
+
+      // Prepare content structure
+      const content = {
+        formData: sanitizeForFirestore(resume.formData),
+        sections: (resume.sections || []).map((s) => ({
+          id: s.id,
+          name: s.name,
+          visible: s.visible,
+          items: (s.items || []).map((it) => ({
+            id: it.id,
+            collapsed: !!it.collapsed,
+            data: sanitizeForFirestore(it.data || {}),
+          })),
+        })),
+      };
+
+      // Prepare layout structure
+      const layout = sanitizeForFirestore({
+        layoutConfig: resume.layoutConfig,
+        spacingConfig: resume.spacingConfig,
+        personalConfig: resume.personalConfig,
+        colorConfig: resume.colorConfig,
+        selectedFont: resume.selectedFont,
+        sectionOrder: resume.sectionOrder,
+        entryLayoutConfig: entryLayoutConfig,
+      });
+
+      // Create template object with required structure
+      const templateData = {
+        content,
+        layout,
+        name: `Template - ${resume.formData.fullName || "Untitled"} - ${new Date().toLocaleDateString()}`,
+        createdAt: new Date(),
+      };
+
+      // Save to Firestore templates collection
+      await firestore.saveTemplate(templateData);
+
+      showSnackbar("success", "Template saved successfully!", 3000);
+      console.log("Saved template to Firestore");
+    } catch (err) {
+      console.error("Failed to save template:", err);
+      showSnackbar("error", `Failed to save template: ${err.message}`, 3500);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Load resume content & layout from Firestore by doc id
   const loadFromFirestore = async (docId) => {
     if (!docId) {
@@ -1414,7 +1539,11 @@ const Resume = () => {
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex flex-col">
-      <ResumeNav onPreviewToggle={() => setShowPreview(!showPreview)} />
+      <ResumeNav 
+        onPreviewToggle={() => setShowPreview(!showPreview)} 
+        onSaveTemplate={handleSaveAsTemplate}
+        isSavingTemplate={isSaving}
+      />
 
       <main className="flex-1 w-full pt-20">
         <div className="mx-auto flex w-full gap-2 px-4 md:px-6 flex-col md:flex-row items-start h-[calc(100vh-80px)] justify-center pt-4">

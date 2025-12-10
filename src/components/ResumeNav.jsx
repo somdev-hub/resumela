@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { FaRegFilePdf } from "react-icons/fa";
 import { FiDownload, FiEye, FiMenu } from "react-icons/fi";
+import { MdSave } from "react-icons/md";
 import { useNavigate, useParams } from "react-router-dom";
 import { IconButton, Menu, MenuItem } from "@mui/material";
 import { Visibility as VisibilityIcon } from "@mui/icons-material";
 
-const ResumeNav = ({ onPreviewToggle }) => {
+const ResumeNav = ({ onPreviewToggle, onSaveTemplate, isSavingTemplate }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const navigate = useNavigate();
@@ -77,6 +78,46 @@ const ResumeNav = ({ onPreviewToggle }) => {
             <FiEye /> View PDF
           </button>
           <button
+            onClick={onSaveTemplate}
+            disabled={isSavingTemplate}
+            className={`hidden md:inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-semibold shadow-sm transition ${
+              isSavingTemplate
+                ? "cursor-not-allowed bg-amber-50 text-amber-400"
+                : "text-amber-600 hover:bg-amber-50"
+            }`}
+            title="Save current resume as template"
+          >
+            {isSavingTemplate ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <MdSave /> Save as Template
+              </>
+            )}
+          </button>
+          <button
             onClick={() => downloadPDF()}
             className="hidden md:inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700"
           >
@@ -115,6 +156,15 @@ const ResumeNav = ({ onPreviewToggle }) => {
               }}
             >
               View PDF
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                onSaveTemplate?.();
+                setMenuAnchorEl(null);
+              }}
+              disabled={isSavingTemplate}
+            >
+              {isSavingTemplate ? "Saving Template..." : "Save as Template"}
             </MenuItem>
             <MenuItem
               onClick={() => {
