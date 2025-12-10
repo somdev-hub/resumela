@@ -415,13 +415,24 @@ const CoverLetter = () => {
       // Fetch resume data from Firestore
       const resumeContent = await getResumeContent(resumeId);
 
+      // created resumecontent copy without photoUrl field and updatedAt field
+        // photoUrl is at resumeContent.formData.photoUrl
+        // updatedAt is at resumeContent.updatedAt
+      if (resumeContent && resumeContent.formData) {
+        const { photoUrl, ...restFormData } = resumeContent.formData;
+        resumeContent.formData = restFormData;
+      }
+      if (resumeContent && resumeContent.updatedAt) {
+        delete resumeContent.updatedAt;
+      }
+
       if (!resumeContent) {
         throw new Error("Failed to fetch resume data");
       }
 
       // Call the API endpoint with the correct format
       const response = await fetch(
-        "http://localhost:5678/webhook-test/cover-letter",
+        "https://n8n-service-riwj.onrender.com/webhook/cover-letter",
         {
           method: "POST",
           headers: {
