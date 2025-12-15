@@ -16,6 +16,7 @@ const CoverLetterPreview = ({
   personalConfig,
   colorConfig,
   combinedPreviewRef,
+  scale,
 }) => {
   const A4_WIDTH_PX = 794;
   const A4_HEIGHT_PX = 1123;
@@ -422,14 +423,16 @@ const CoverLetterPreview = ({
   };
 
   const renderPage = (pageData, pageIndex) => {
-    // Calculate scale to fit preview in viewport while maintaining structure
-    const containerPadding = 32; // px-2 on mobile, px-0 on desktop
-    const maxAvailableWidth =
-      typeof window !== "undefined"
-        ? window.innerWidth - containerPadding
-        : 794;
-
-    const scale = Math.min(maxAvailableWidth / A4_WIDTH_PX, 1);
+    // Use provided scale prop or calculate to fit preview in viewport
+    let pageScale = scale;
+    if (!pageScale) {
+      const containerPadding = 32; // px-2 on mobile, px-0 on desktop
+      const maxAvailableWidth =
+        typeof window !== "undefined"
+          ? window.innerWidth - containerPadding
+          : 794;
+      pageScale = Math.min(maxAvailableWidth / A4_WIDTH_PX, 1);
+    }
 
     return (
       <div
@@ -442,7 +445,7 @@ const CoverLetterPreview = ({
           width: A4_WIDTH_PX,
           minHeight: A4_HEIGHT_PX,
           maxWidth: "100%",
-          transform: `scale(${scale})`,
+          transform: `scale(${pageScale})`,
           transformOrigin: "top center",
           background:
             colorConfig?.accentMode === "multi" &&

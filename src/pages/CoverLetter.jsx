@@ -23,13 +23,15 @@ import {
   Description as DescriptionIcon,
   Menu as MenuIcon,
 } from "@mui/icons-material";
-import { useParams, useNavigate } from "react-router-dom";
+import { MdSave } from "react-icons/md";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   saveCoverLetterContent,
   saveCoverLetterLayout,
   getCoverLetterContent,
   getCoverLetterLayout,
   getResumeContent,
+  saveCoverLetterTemplate,
 } from "../firebase/firestore";
 import CoverLetterEditor from "../components/coverletter/CoverLetterEditor";
 import CoverLetterPreview from "../components/coverletter/CoverLetterPreview";
@@ -46,6 +48,7 @@ const CoverLetter = () => {
   const [syncWithResume, setSyncWithResume] = useState(true);
   const params = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const pdfPreviewRef = useRef(null);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
@@ -81,6 +84,7 @@ const CoverLetter = () => {
   const [firestoreDocId, setFirestoreDocId] = useState(null);
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
@@ -252,6 +256,7 @@ const CoverLetter = () => {
   useEffect(() => {
     const initializeDocument = async () => {
       const urlDocId = params?.docId;
+      const templateData = location.state?.templateData;
 
       if (!urlDocId) {
         // No docId in URL - shouldn't happen with new flow, but handle gracefully
@@ -267,42 +272,99 @@ const CoverLetter = () => {
       setFirestoreDocId(urlDocId);
 
       try {
-        // Try to load existing document from Firestore
-        const content = await getCoverLetterContent(urlDocId);
+        // Check if we have template data to initialize from
+        if (templateData && templateData.content && templateData.layout) {
+          // Initialize with template data
+          const templateContent = templateData.content;
+          const templateLayout = templateData.layout;
 
-        if (content) {
-          // Document exists, load it
-          await loadFromFirestore(urlDocId);
-        } else {
-          // Document doesn't exist, create it as "Untitled Cover Letter"
+          // Update local state with template data
           const initialFormData = {
             ...DEFAULT_FORM_DATA,
-            title: "Untitled Cover Letter",
+            letterContent: templateContent.letterContent || "",
+            fullName: templateContent.fullName || "",
+            title: templateContent.title || "Untitled Cover Letter",
+            email: templateContent.email || "",
+            phone: templateContent.phone || "",
+            location: templateContent.location || "",
+            linkedin: templateContent.linkedin || "",
+            github: templateContent.github || "",
+            date: templateContent.date || new Date().toISOString().split("T")[0],
+            recipientName: templateContent.recipientName || "",
+            company: templateContent.company || "",
+            companyLocation: templateContent.companyLocation || "",
           };
 
-          const initialLayout = {
-            spacingConfig,
-            personalConfig,
-            colorConfig,
-            selectedFont,
-            layoutConfig,
-          };
+          // Update layout state with template layout
+          if (templateLayout.spacingConfig) setSpacingConfig(templateLayout.spacingConfig);
+          if (templateLayout.personalConfig) setPersonalConfig(templateLayout.personalConfig);
+          if (templateLayout.colorConfig) setColorConfig(templateLayout.colorConfig);
+          if (templateLayout.selectedFont) setSelectedFont(templateLayout.selectedFont);
+          if (templateLayout.layoutConfig) setLayoutConfig(templateLayout.layoutConfig);
 
-          // Create the document in Firestore with the URL's docId
+          // Save to Firestore
           await saveCoverLetterContent(urlDocId, initialFormData);
-          await saveCoverLetterLayout(urlDocId, initialLayout);
+          await saveCoverLetterLayout(urlDocId, {
+            spacingConfig: templateLayout.spacingConfig || spacingConfig,
+            personalConfig: templateLayout.personalConfig || personalConfig,
+            colorConfig: templateLayout.colorConfig || colorConfig,
+            selectedFont: templateLayout.selectedFont || selectedFont,
+            layoutConfig: templateLayout.layoutConfig || layoutConfig,
+          });
 
           // Update local state
           setFormData(initialFormData);
 
           // Update signature to prevent immediate re-save
-          lastSavedSignatureRef.current = computeSignature(
-            initialFormData,
-            initialLayout
-          );
+          lastSavedSignatureRef.current = computeSignature(initialFormData, {
+            spacingConfig: templateLayout.spacingConfig || spacingConfig,
+            personalConfig: templateLayout.personalConfig || personalConfig,
+            colorConfig: templateLayout.colorConfig || colorConfig,
+            selectedFont: templateLayout.selectedFont || selectedFont,
+            layoutConfig: templateLayout.layoutConfig || layoutConfig,
+          });
           setLastSavedAt(new Date().toISOString());
 
-          showSnackbar("success", "New cover letter created", 2000);
+          showSnackbar("success", "Cover letter created from template", 2000);
+        } else {
+          // Original logic - load existing or create new
+          // Try to load existing document from Firestore
+          const content = await getCoverLetterContent(urlDocId);
+
+          if (content) {
+            // Document exists, load it
+            await loadFromFirestore(urlDocId);
+          } else {
+            // Document doesn't exist, create it as "Untitled Cover Letter"
+            const initialFormData = {
+              ...DEFAULT_FORM_DATA,
+              title: "Untitled Cover Letter",
+            };
+
+            const initialLayout = {
+              spacingConfig,
+              personalConfig,
+              colorConfig,
+              selectedFont,
+              layoutConfig,
+            };
+
+            // Create the document in Firestore with the URL's docId
+            await saveCoverLetterContent(urlDocId, initialFormData);
+            await saveCoverLetterLayout(urlDocId, initialLayout);
+
+            // Update local state
+            setFormData(initialFormData);
+
+            // Update signature to prevent immediate re-save
+            lastSavedSignatureRef.current = computeSignature(
+              initialFormData,
+              initialLayout
+            );
+            setLastSavedAt(new Date().toISOString());
+
+            showSnackbar("success", "New cover letter created", 2000);
+          }
         }
 
         // Persist the docId to localStorage
@@ -406,6 +468,68 @@ const CoverLetter = () => {
       alert("failed to export PDF: " + error.message);
     }
   }
+
+  const handleSaveCoverLetterTemplate = async () => {
+    try {
+      setIsSavingTemplate(true);
+      showSnackbar("info", "Saving cover letter template...", 0);
+
+      // Sanitize data for Firestore
+      const sanitizeField = (field) => {
+        if (field === undefined || field === null) return "";
+        if (typeof field !== "string") return String(field);
+        return field;
+      };
+
+      // Extract content object
+      const content = {
+        letterContent: sanitizeField(formData.letterContent),
+        fullName: sanitizeField(formData.fullName),
+        title: sanitizeField(formData.title),
+        email: sanitizeField(formData.email),
+        phone: sanitizeField(formData.phone),
+        location: sanitizeField(formData.location),
+        linkedin: sanitizeField(formData.linkedin),
+        github: sanitizeField(formData.github),
+        date: sanitizeField(formData.date),
+        recipientName: sanitizeField(formData.recipientName),
+        company: sanitizeField(formData.company),
+        companyLocation: sanitizeField(formData.companyLocation),
+      };
+
+      // Extract layout object
+      const layout = {
+        spacingConfig: spacingConfig || {},
+        personalConfig: personalConfig || {},
+        colorConfig: colorConfig || {},
+        selectedFont: selectedFont || "Poppins",
+        layoutConfig: layoutConfig || {},
+      };
+
+      // Create template data
+      const templateData = {
+        content,
+        layout,
+        name: `${content.title || "Untitled"} - ${new Date().toLocaleDateString()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Save to Firestore
+      await saveCoverLetterTemplate(templateData);
+
+      showSnackbar("success", "Cover letter template saved successfully!", 3000);
+    } catch (err) {
+      console.error("Error saving cover letter template:", err);
+      showSnackbar(
+        "error",
+        `Failed to save template: ${err.message}`,
+        3500
+      );
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
 
   const handleAIGenerate = async ({ jobUrl, resumeId }) => {
     setAiGenerating(true);
@@ -541,6 +665,41 @@ const CoverLetter = () => {
             <Button
               variant="contained"
               size="small"
+              startIcon={<MdSave />}
+              onClick={handleSaveCoverLetterTemplate}
+              disabled={isSavingTemplate}
+            >
+              {isSavingTemplate ? (
+                <>
+                  <svg
+                    className="animate-spin h-4 w-4 mr-2"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>Save as Template</>
+              )}
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
               startIcon={<DownloadIcon />}
               onClick={() => downloadPDF()}
               disabled={isExporting}
@@ -599,6 +758,15 @@ const CoverLetter = () => {
               }}
             >
               View PDF
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleSaveCoverLetterTemplate();
+                setMenuAnchorEl(null);
+              }}
+              disabled={isSavingTemplate}
+            >
+              {isSavingTemplate ? "Saving Template..." : "Save as Template"}
             </MenuItem>
             <MenuItem
               onClick={() => {

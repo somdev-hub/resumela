@@ -342,6 +342,48 @@ export async function getAllTemplates() {
   }
 }
 
+// Save cover letter template (content + layout) into `coverletter_templates` collection
+export async function saveCoverLetterTemplate(templateData) {
+  const db = initFirestore();
+  try {
+    const { content, layout, name } = templateData;
+    
+    const ref = await addDoc(collection(db, "coverletter_templates"), {
+      content,
+      layout,
+      name: name || "Untitled Cover Letter Template",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    
+    console.log("[saveCoverLetterTemplate] Created template with ID:", ref.id);
+    return ref.id;
+  } catch (err) {
+    console.error("[saveCoverLetterTemplate] Error:", err);
+    throw err;
+  }
+}
+
+// Retrieve all cover letter templates from the coverletter_templates collection
+export async function getAllCoverLetterTemplates() {
+  const db = initFirestore();
+  try {
+    const templateSnaps = await getDocs(collection(db, "coverletter_templates"));
+    const templates = [];
+    templateSnaps.forEach((snap) => {
+      templates.push({
+        id: snap.id,
+        ...snap.data(),
+      });
+    });
+    console.log("[getAllCoverLetterTemplates] Retrieved", templates.length, "cover letter templates");
+    return templates;
+  } catch (err) {
+    console.error("[getAllCoverLetterTemplates] Error:", err);
+    return [];
+  }
+}
+
 export default {
   initFirestore,
   saveResumeContent,
@@ -355,4 +397,6 @@ export default {
   getAllResumes,
   saveTemplate,
   getAllTemplates,
+  saveCoverLetterTemplate,
+  getAllCoverLetterTemplates,
 };

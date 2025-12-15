@@ -5,6 +5,7 @@ import { Dialog, IconButton } from "@mui/material";
 import Navbar from "../components/Navbar";
 import MarketplaceCard from "../components/marketplace/MarketplaceCard";
 import ResumePreview from "../components/ResumePreview";
+import CoverLetterPreview from "../components/coverletter/CoverLetterPreview";
 import firestore from "../firebase/firestore";
 
 const Marketplace = () => {
@@ -12,7 +13,9 @@ const Marketplace = () => {
   const A4_HEIGHT_PX = 1123;
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [templateType, setTemplateType] = useState("resume"); // "resume" or "coverletter"
   const [templates, setTemplates] = useState([]);
+  const [coverLetterTemplates, setCoverLetterTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -23,13 +26,18 @@ const Marketplace = () => {
     const fetchTemplates = async () => {
       try {
         setLoading(true);
-        const fetchedTemplates = await firestore.getAllTemplates();
-        setTemplates(fetchedTemplates);
+        const [fetchedResume, fetchedCoverLetter] = await Promise.all([
+          firestore.getAllTemplates(),
+          firestore.getAllCoverLetterTemplates(),
+        ]);
+        setTemplates(fetchedResume);
+        setCoverLetterTemplates(fetchedCoverLetter);
         setError(null);
       } catch (err) {
         console.error("Error fetching templates:", err);
         setError("Failed to load templates");
         setTemplates([]);
+        setCoverLetterTemplates([]);
       } finally {
         setLoading(false);
       }
@@ -38,9 +46,8 @@ const Marketplace = () => {
     fetchTemplates();
   }, []);
 
-  if(selectedTemplate){
+  if (selectedTemplate) {
     console.log(selectedTemplate.layout);
-    
   }
 
   const categories = [
@@ -158,23 +165,49 @@ const Marketplace = () => {
             </p>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex flex-wrap justify-center gap-3 mb-12">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`px-6 py-3 rounded-full font-semibold transition-all transform ${
-                  selectedCategory === category.id
-                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105"
-                    : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
-                }`}
-              >
-                <span className="mr-2">{category.icon}</span>
-                {category.label}
-              </button>
-            ))}
+          {/* Template Type Tabs */}
+          <div className="flex justify-center gap-4 mb-12">
+            <button
+              onClick={() => setTemplateType("resume")}
+              className={`px-8 py-3 rounded-full font-semibold transition-all transform ${
+                templateType === "resume"
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105"
+                  : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
+              }`}
+            >
+              📄 Resume Templates ({templates.length})
+            </button>
+            <button
+              onClick={() => setTemplateType("coverletter")}
+              className={`px-8 py-3 rounded-full font-semibold transition-all transform ${
+                templateType === "coverletter"
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105"
+                  : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
+              }`}
+            >
+              💌 Cover Letter Templates ({coverLetterTemplates.length})
+            </button>
           </div>
+
+          {/* Category Filter - Resume Only */}
+          {templateType === "resume" && (
+            <div className="flex flex-wrap justify-center gap-3 mb-12">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`px-6 py-3 rounded-full font-semibold transition-all transform ${
+                    selectedCategory === category.id
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg scale-105"
+                      : "bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
+                  }`}
+                >
+                  <span className="mr-2">{category.icon}</span>
+                  {category.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Templates Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -186,12 +219,12 @@ const Marketplace = () => {
               <div className="col-span-full text-center py-12">
                 <p className="text-red-400 text-lg">{error}</p>
               </div>
-            ) : templates.length > 0 ? (
+            ) : templateType === "resume" && templates.length > 0 ? (
               templates.map((template) => (
                 <div
                   key={template.id}
                   onClick={() => {
-                    setSelectedTemplate(template);
+                    setSelectedTemplate({ ...template, type: "resume" });
                     setDialogOpen(true);
                   }}
                   className="group relative rounded-xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 hover:border-purple-500/50 transition-all transform hover:scale-105 hover:shadow-2xl cursor-pointer"
@@ -221,10 +254,53 @@ const Marketplace = () => {
                   </div>
                 </div>
               ))
+            ) : templateType === "coverletter" &&
+              coverLetterTemplates.length > 0 ? (
+              coverLetterTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  onClick={() => {
+                    setSelectedTemplate({ ...template, type: "coverletter" });
+                    setDialogOpen(true);
+                  }}
+                 className="group relative rounded-xl overflow-hidden bg-white/5 backdrop-blur-md border border-white/10 hover:border-purple-500/50 transition-all transform hover:scale-105 hover:shadow-2xl cursor-pointer"
+                >
+                 {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20"></div>
+
+                  <MarketplaceCard
+                    template={{
+                      ...template,
+                      type: "coverletter",
+                    }}
+                  />
+
+                  
+
+                 {/* Overlay Buttons */}
+                  <div className="absolute inset-0 flex items-end justify-center p-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const newDocId = `${Date.now()}_${Math.random()
+                          .toString(36)
+                          .substr(2, 9)}`;
+                        navigate(`/resume/${newDocId}`, {
+                          state: { templateData: template },
+                        });
+                      }}
+                      className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
+                    >
+                      Use Template
+                    </button>
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="col-span-full text-center py-12">
                 <p className="text-gray-300 text-lg">
-                  No templates available yet. Start by creating one!
+                  No {templateType === "resume" ? "resume" : "cover letter"}{" "}
+                  templates available yet. Start by creating one!
                 </p>
               </div>
             )}
@@ -237,15 +313,20 @@ const Marketplace = () => {
                 Can't find what you're looking for?
               </h3>
               <p className="text-gray-300 mb-6">
-                Create a completely custom resume from scratch with our powerful
-                builder
+                {templateType === "resume"
+                  ? "Create a completely custom resume from scratch with our powerful builder"
+                  : "Write a completely custom cover letter from scratch with our advanced editor"}
               </p>
               <button
                 onClick={() => {
                   const newDocId = `${Date.now()}_${Math.random()
                     .toString(36)
                     .substr(2, 9)}`;
-                  navigate(`/resume/${newDocId}`);
+                  navigate(
+                    templateType === "resume"
+                      ? `/resume/${newDocId}`
+                      : `/coverletter/${newDocId}`
+                  );
                 }}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white text-purple-900 font-bold rounded-lg hover:bg-gray-100 transition-all"
               >
@@ -267,11 +348,11 @@ const Marketplace = () => {
           style: {
             height: A4_HEIGHT_PX,
             width: A4_WIDTH_PX + 20, // adding some padding
-          }
+          },
         }}
       >
-        {/* A4 Resume Preview */}
-        {selectedTemplate && (
+        {/* Resume Preview */}
+        {selectedTemplate && selectedTemplate.type === "resume" && (
           <div className="flex-1 flex items-center justify-center hide-scrollbar">
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
               <ResumePreview
@@ -310,6 +391,35 @@ const Marketplace = () => {
                   selectedTemplate.layout?.entryLayoutConfig || {}
                 }
                 scale={1}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Cover Letter Preview */}
+        {selectedTemplate && selectedTemplate.type === "coverletter" && (
+          <div className="flex-1 flex items-center justify-center hide-scrollbar">
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+              <CoverLetterPreview
+                formData={selectedTemplate.content || {}}
+                spacingConfig={
+                  selectedTemplate.layout?.spacingConfig || {
+                    fontSize: 11,
+                    lineHeight: 1.5,
+                    marginLR: 15,
+                    marginTB: 15,
+                  }
+                }
+                selectedFont={
+                  selectedTemplate.layout?.selectedFont || "Poppins"
+                }
+                personalConfig={
+                  selectedTemplate.layout?.personalConfig || {
+                    align: "left",
+                    arrangement: "horizontal",
+                  }
+                }
+                colorConfig={selectedTemplate.layout?.colorConfig || {}}
               />
             </div>
           </div>

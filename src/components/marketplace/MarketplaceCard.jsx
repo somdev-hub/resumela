@@ -13,9 +13,15 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Star, Heart } from "lucide-react";
 import ResumePreview from "../ResumePreview";
+import CoverLetterPreview from "../coverletter/CoverLetterPreview";
 import temp1 from "./templates/temp1.json";
 
 const MarketplaceCard = ({ template }) => {
+  // Determine template type (resume or coverletter)
+  const templateType = useMemo(() => {
+    return template?.type || "resume";
+  }, [template?.type]);
+
   // Generate a unique scope ID for this card to prevent color class conflicts
   const scopeId = useMemo(() => {
     return template?.id || `card-${Math.random().toString(36).substr(2, 9)}`;
@@ -182,15 +188,36 @@ const MarketplaceCard = ({ template }) => {
         }}
         elevation={3}
       >
-        <ResumePreview
-          resume={resume}
-          A4_WIDTH_PX={A4_WIDTH_PX}
-          A4_HEIGHT_PX={A4_HEIGHT_PX}
-          entryLayoutConfig={dummyLayoutConfig.entryLayoutConfig}
-          combinedPreviewRef={() => {}}
-          scale={0.34}
-          scopeId={scopeId}
-        />
+        {templateType === "resume" ? (
+          <ResumePreview
+            resume={resume}
+            A4_WIDTH_PX={A4_WIDTH_PX}
+            A4_HEIGHT_PX={A4_HEIGHT_PX}
+            entryLayoutConfig={dummyLayoutConfig.entryLayoutConfig}
+            combinedPreviewRef={() => {}}
+            scale={0.34}
+            scopeId={scopeId}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <CoverLetterPreview
+              formData={dummyResumeData || {}}
+              spacingConfig={dummyLayoutConfig?.spacingConfig || {
+                fontSize: 11,
+                lineHeight: 1.5,
+                marginLR: 15,
+                marginTB: 15,
+              }}
+              selectedFont={dummyLayoutConfig?.selectedFont || "Poppins"}
+              personalConfig={dummyLayoutConfig?.personalConfig || {
+                align: "left",
+                arrangement: "horizontal",
+              }}
+              colorConfig={dummyLayoutConfig?.colorConfig || {}}
+              scale={0.34}
+            />
+          </div>
+        )}
       </Card>
     </>
   );
